@@ -15,6 +15,7 @@ use minicbor::decode::Decoder;
 
 use uuid::Uuid;
 
+pub mod auth;
 pub mod component;
 pub mod consts;
 pub mod digest;
@@ -23,6 +24,7 @@ pub mod manifest;
 pub mod manifeststate;
 pub mod report;
 
+use crate::auth::Authentication;
 use crate::consts::*;
 use crate::error::Error;
 use crate::manifest::Manifest;
