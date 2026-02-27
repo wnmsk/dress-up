@@ -35,9 +35,10 @@ impl<'a, C> Decode<'a, C> for Component<'a> {
         d.skip()?;
         let end = d.position();
         let input = d.input();
-        Ok(Component {
-            cbor: &input[start..end],
-        })
+        let cbor = input
+            .get(start..end)
+            .ok_or(minicbor::decode::Error::end_of_input())?;
+        Ok(Component { cbor })
     }
 }
 
