@@ -6,6 +6,11 @@ use core::convert::From;
 /// TODO! ensure error locations match the location within the manifest.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Error {
+    /// Authentication of the manifest failed
+    ///
+    /// Any processing of the manifest *must* stop when this error is returned and any persistent
+    /// state must be erased.
+    AuthenticationFailure,
     /// String Capacity exhausted.
     CapacityError,
     /// SUIT Condition match failure.
@@ -16,6 +21,8 @@ pub enum Error {
     TryEachFail(usize),
     /// Unexpected end of the CBOR input.
     EndOfInput,
+    /// Authentication structure is not valid.
+    InvalidAuthenticationStructure,
     /// Invalid command sequence.
     InvalidCommandSequence(usize),
     /// Invalid common section.
@@ -59,10 +66,12 @@ impl Error {
 impl core::fmt::Display for Error {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
+            Self::AuthenticationFailure => write!(f, "authentication of manifest failed"),
             Self::CapacityError => write!(f, "string capacity exhausted"),
             Self::ConditionMatchFail(pos) => write!(f, "condition mismatch at {pos}"),
             Self::TryEachFail(pos) => write!(f, "try each sequence failed at {pos}"),
             Self::EndOfInput => write!(f, "end of CBOR input"),
+            Self::InvalidAuthenticationStructure => write!(f, "invalide authentication structure"),
             Self::InvalidCommandSequence(n) => write!(f, "invalid command sequence at {n}"),
             Self::InvalidCommonSection => write!(f, "invalid common section found in manifest"),
             Self::NoAuthObject => write!(f, "no Authentication object in manifest"),
