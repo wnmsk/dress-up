@@ -349,7 +349,7 @@ impl<'a> Manifest<'a, Authenticated> {
                         self.cond_component_slot(&state, component.component(), os_hooks)?;
                         Self::decode_reporting_policy(&mut decoder)?;
                     }
-                    SuitCommand::Copy => todo!(),
+                    SuitCommand::Copy => Err(Error::UnsupportedCommand(SuitCommand::Copy.into()))?,
                     SuitCommand::DeviceIdentifier => {
                         self.cond_device_identifier(&state, component.component(), os_hooks)?;
                         Self::decode_reporting_policy(&mut decoder)?;
@@ -364,9 +364,15 @@ impl<'a> Manifest<'a, Authenticated> {
                         Self::decode_reporting_policy(&mut decoder)?;
                     }
 
-                    SuitCommand::Invoke => todo!(),
-                    SuitCommand::RunSequence => todo!(),
-                    SuitCommand::Swap => todo!(),
+                    SuitCommand::Invoke => {
+                        Err(Error::UnsupportedCommand(SuitCommand::Invoke.into()))?
+                    }
+                    SuitCommand::RunSequence => {
+                        Err(Error::UnsupportedCommand(SuitCommand::RunSequence.into()))?
+                    }
+                    SuitCommand::Swap => {
+                        Err(Error::UnsupportedCommand(SuitCommand::RunSequence.into()))?
+                    }
                     SuitCommand::TryEach => {
                         self.try_each(&mut state, component, &mut decoder, os_hooks)?;
                     }
