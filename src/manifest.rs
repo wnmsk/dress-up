@@ -247,6 +247,19 @@ impl<'a> Manifest<'a, Authenticated> {
         }
     }
 
+    fn directive_fetch(
+        &self,
+        state: &ManifestState,
+        component: &Component,
+        os_hooks: &impl OperatingHooks,
+    ) -> Result<(), Error> {
+        if let Some(uri) = state.uri {
+            os_hooks.fetch(component, state.component_slot, uri)
+        } else {
+            Err(Error::ParameterNotSet(0))
+        }
+    }
+
     fn directive_write(
         &self,
         state: &ManifestState,
@@ -341,7 +354,10 @@ impl<'a> Manifest<'a, Authenticated> {
                         self.cond_device_identifier(&state, component.component(), os_hooks)?;
                         Self::decode_reporting_policy(&mut decoder)?;
                     }
-                    SuitCommand::Fetch => todo!(),
+                    SuitCommand::Fetch => {
+                        self.directive_fetch(&state, component.component(), os_hooks)?;
+                        Self::decode_reporting_policy(&mut decoder)?;
+                    }
                     SuitCommand::ImageMatch => {
                         // Digest check
                         self.cond_image_match(&state, component.component(), os_hooks)?;
