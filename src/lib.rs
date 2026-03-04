@@ -16,6 +16,7 @@ use minicbor::decode::Decoder;
 use uuid::Uuid;
 
 pub mod auth;
+pub mod command;
 pub mod component;
 pub mod consts;
 pub mod digest;
