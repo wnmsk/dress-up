@@ -120,6 +120,35 @@ impl<'a> Manifest<'a, Authenticated> {
         }
     }
 
+    fn has_section(&self, section: crate::consts::Manifest) -> Result<bool, Error> {
+        self.find_command_sequence(section).map(|s| s.is_some())
+    }
+
+    /// Check if the manifest contains a payload fetch command sequence
+    pub fn has_payload_fetch(&self) -> Result<bool, Error> {
+        self.has_section(crate::consts::Manifest::PayloadFetch)
+    }
+
+    /// Check if the manifest contains a payload installation command sequence
+    pub fn has_payload_installation(&self) -> Result<bool, Error> {
+        self.has_section(crate::consts::Manifest::PayloadInstallation)
+    }
+
+    /// Check if the manifest contains an image validation command sequence
+    pub fn has_image_validation(&self) -> Result<bool, Error> {
+        self.has_section(crate::consts::Manifest::ImageValidation)
+    }
+
+    /// Check if the manifest contains an image loading command sequence
+    pub fn has_image_loading(&self) -> Result<bool, Error> {
+        self.has_section(crate::consts::Manifest::ImageLoading)
+    }
+
+    /// Check if the manifest contains an invoke command sequence
+    pub fn has_invoke(&self) -> Result<bool, Error> {
+        self.has_section(crate::consts::Manifest::ImageInvocation)
+    }
+
     fn execute_section_with_common(
         &self,
         os_hooks: &impl OperatingHooks,
