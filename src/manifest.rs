@@ -177,10 +177,18 @@ impl<'a> Manifest<'a, Authenticated> {
         Ok(())
     }
 
+    /// Execute the command sequence in the payload fetch section.
+    ///
+    /// The command sequence in the common section is executed before the command sequence in the
+    /// payload fetch is executed.
     pub fn execute_payload_fetch(&self, os_hooks: &impl OperatingHooks) -> Result<(), Error> {
         self.execute_section_with_common(os_hooks, crate::consts::Manifest::PayloadFetch)
     }
 
+    /// Execute the command sequence in the payload installation section.
+    ///
+    /// The command sequence in the common section is executed before the command sequence in the
+    /// payload installation is executed.
     pub fn execute_payload_installation(
         &self,
         os_hooks: &impl OperatingHooks,
@@ -188,17 +196,31 @@ impl<'a> Manifest<'a, Authenticated> {
         self.execute_section_with_common(os_hooks, crate::consts::Manifest::PayloadInstallation)
     }
 
+    /// Execute the command sequence in the image validation section.
+    ///
+    /// The command sequence in the common section is executed before the command sequence in the
+    /// image validation is executed.
     pub fn execute_image_validation(&self, os_hooks: &impl OperatingHooks) -> Result<(), Error> {
         self.execute_section_with_common(os_hooks, crate::consts::Manifest::ImageValidation)
     }
 
+    /// Execute the command sequence in the image loading section.
+    ///
+    /// The command sequence in the common section is executed before the command sequence in the
+    /// image loading is executed.
     pub fn execute_image_loading(&self, os_hooks: &impl OperatingHooks) -> Result<(), Error> {
         self.execute_section_with_common(os_hooks, crate::consts::Manifest::ImageLoading)
     }
+
+    /// Execute the command sequence in the image loading section.
+    ///
+    /// The command sequence in the common section is executed before the command sequence in the
+    /// invoke is executed.
     pub fn execute_invoke(&self, os_hooks: &impl OperatingHooks) -> Result<(), Error> {
         self.execute_section_with_common(os_hooks, crate::consts::Manifest::ImageInvocation)
     }
 
+    /// Execute all command sequences in the manifest.
     pub fn execute_full(&self) -> Result<(), Error> {
         let _state = ManifestState::default();
         let common = self.get_common()?;
