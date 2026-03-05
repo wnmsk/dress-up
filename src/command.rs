@@ -1,5 +1,6 @@
 //use minicbor::decode::Decoder;
 
+use ctutils::{Choice, CtEq};
 use digest::Update;
 use minicbor::bytes::ByteSlice;
 use minicbor::Decoder;
@@ -103,7 +104,11 @@ impl<'a, O: OperatingHooks> CommandSequenceExecutor<'a, O> {
                     SuitCommand::SetComponentIndex => {
                         match_component = component.in_applylist(&mut decoder)?;
                     }
-                    SuitCommand::CheckContent => todo!(), // 1:1 bytewise check
+                    SuitCommand::CheckContent => {
+                        // byte by byte check
+                        self.cond_check_content(&state, component.component())?;
+                        Self::decode_reporting_policy(&mut decoder)?;
+                    }
                     SuitCommand::ClassIdentifier => {
                         self.cond_class_identifier(&state, component.component())?;
                         Self::decode_reporting_policy(&mut decoder)?;
@@ -229,6 +234,39 @@ impl<'a, O: OperatingHooks> CommandSequenceExecutor<'a, O> {
                         Err(Error::ConditionMatchFail(0))
                     }
                 })
+        } else {
+            Err(Error::ParameterNotSet(0))
+        }
+    }
+
+    fn cond_check_content(
+        &self,
+        state: &ManifestState,
+        component: &Component,
+    ) -> Result<(), Error> {
+        if let Some(content) = &state.content {
+            let size = self.os_hooks.component_size(component)?;
+            if size != content.len() {
+                return Err(Error::ConditionMatchFail(0));
+            }
+            let mut choice = Choice::TRUE;
+            let mut buf = RwBuf::<O::ReadWriteBufferSize>::new().buf;
+            for offset in (0..size).step_by(buf.len()) {
+                let diff = size.saturating_sub(offset);
+                let read_size = if diff < buf.len() { diff } else { buf.len() };
+                let buf = &mut buf[0..read_size];
+                self.os_hooks
+                    .component_read(component, state.component_slot, offset, buf)?;
+                let manifest_content = content
+                    .get(offset..(offset + read_size))
+                    .ok_or(Error::ConditionMatchFail(0))?;
+                choice = choice.and(manifest_content.ct_eq(buf));
+            }
+            if choice.to_bool() {
+                Ok(())
+            } else {
+                Err(Error::ConditionMatchFail(0))
+            }
         } else {
             Err(Error::ParameterNotSet(0))
         }
@@ -408,13 +446,13 @@ mod tests {
     #[test]
     fn write_verify_sequence() {
         let input: &[u8] = &std::vec![
-            0x8A, 0x14, 0xA5, 0x01, 0x50, 0xFA, 0x6B, 0x4A, 0x53, 0xD5, 0xAD, 0x5F, 0xDF, 0xBE,
+            0x8C, 0x14, 0xA5, 0x01, 0x50, 0xFA, 0x6B, 0x4A, 0x53, 0xD5, 0xAD, 0x5F, 0xDF, 0xBE,
             0x9D, 0xE6, 0x63, 0xE4, 0xD4, 0x1F, 0xFE, 0x02, 0x50, 0x14, 0x92, 0xAF, 0x14, 0x25,
             0x69, 0x5E, 0x48, 0xBF, 0x42, 0x9B, 0x2D, 0x51, 0xF2, 0xAB, 0x45, 0x03, 0x58, 0x24,
             0x82, 0x2F, 0x58, 0x20, 0xB1, 0x6A, 0xA5, 0x6B, 0xE3, 0x88, 0x0D, 0x18, 0xCD, 0x41,
             0xE6, 0x83, 0x84, 0xCF, 0x1E, 0xC8, 0xC1, 0x76, 0x80, 0xC4, 0x5A, 0x02, 0xB1, 0x57,
             0x5D, 0xC1, 0x51, 0x89, 0x23, 0xAE, 0x8B, 0x0E, 0x0E, 0x19, 0x87, 0xD0, 0x12, 0x44,
-            0x74, 0xBA, 0x25, 0x21, 0x01, 0x0F, 0x02, 0x0F, 0x12, 0x0F, 0x03, 0x0F
+            0x74, 0xBA, 0x25, 0x21, 0x01, 0x0F, 0x02, 0x0F, 0x12, 0x0F, 0x03, 0x0F, 0x06, 0x0F,
         ];
         let component_name = &std::vec![0x81, 0x41, 0x00];
         let component = Component::from_bytes(component_name);
