@@ -76,7 +76,7 @@ pub enum Manifest {
 /// SUIT common section elements.
 #[derive(Copy, Clone, Debug, num_enum::IntoPrimitive)]
 #[non_exhaustive]
-#[repr(i8)]
+#[repr(i16)]
 pub enum SuitCommon {
     /// Unset detection.
     Unset = 0,
