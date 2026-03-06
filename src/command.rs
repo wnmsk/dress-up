@@ -5,6 +5,7 @@ use digest::Update;
 use minicbor::bytes::ByteSlice;
 use minicbor::Decoder;
 
+use crate::cbor::SubCbor;
 use crate::component::{Component, ComponentInfo};
 use crate::consts::SuitCommand;
 use crate::error::Error;
@@ -12,17 +13,93 @@ use crate::manifeststate::ManifestState;
 use crate::report::ReportingPolicy;
 use crate::OperatingHooks;
 
-#[derive(Debug, Clone)]
-pub(crate) struct CommandSequenceExecutor<'a, O: OperatingHooks> {
-    command_sequence: &'a ByteSlice,
-    os_hooks: &'a O,
+#[derive(Clone, Debug)]
+enum CommandArgument<'a> {
+    Report(ReportingPolicy),
+    Cbor(Decoder<'a>),
 }
 
-#[derive(Clone)]
+impl<'a> CommandArgument<'a> {
+    fn new(command: SuitCommand, d: &mut Decoder<'a>) -> Result<Self, Error> {
+        if command.has_report_policy() {
+            let policy = d.decode::<ReportingPolicy>()?;
+            Ok(CommandArgument::Report(policy))
+        } else {
+            let bytes = d.sub_cbor()?;
+            Ok(CommandArgument::Cbor(Decoder::new(bytes)))
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
 struct Command<'a> {
     command: SuitCommand,
-    decoder: Decoder<'a>,
-    state: ManifestState<'a>,
+    argument: CommandArgument<'a>,
+    position: usize,
+}
+
+impl<'a> Command<'a> {
+    fn get_argument_cbor<'b>(&'b mut self) -> Result<&'b mut Decoder<'a>, Error> {
+        if let CommandArgument::Cbor(ref mut decoder) = self.argument {
+            return Ok(decoder);
+        }
+        Err(Error::InvalidCommandSequence(0))
+    }
+
+    fn get_report_policy(&self) -> Result<ReportingPolicy, Error> {
+        if let CommandArgument::Report(policy) = self.argument {
+            return Ok(policy);
+        }
+        Err(Error::InvalidCommandSequence(0))
+    }
+}
+
+struct CommandSequenceIterator<'a> {
+    d: Decoder<'a>,
+    remaining: u64,
+}
+
+impl<'a> CommandSequenceIterator<'a> {
+    pub fn new(mut d: Decoder<'a>) -> Result<Self, Error> {
+        let length = Self::enter_sequence(&mut d)?;
+        Ok(CommandSequenceIterator {
+            d,
+            remaining: length,
+        })
+    }
+
+    fn enter_sequence(decoder: &mut Decoder) -> Result<u64, Error> {
+        let length = decoder.array()?;
+        let length = match length {
+            Some(n) if n % 2 == 1 => return Err(Error::InvalidCommandSequence(decoder.position())),
+            None => return Err(Error::InvalidCommandSequence(decoder.position())),
+            Some(n) => n / 2,
+        };
+        Ok(length)
+    }
+
+    fn decode_command(&mut self) -> Result<Command<'a>, Error> {
+        let position = self.d.position();
+        let command = self.d.i32()?.into();
+        let argument = CommandArgument::new(command, &mut self.d)?;
+        Ok(Command {
+            command,
+            argument,
+            position,
+        })
+    }
+}
+
+impl<'a> Iterator for CommandSequenceIterator<'a> {
+    type Item = Result<Command<'a>, Error>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.remaining > 0 {
+            self.remaining -= 1;
+            return Some(self.decode_command());
+        }
+        None
+    }
 }
 
 struct RwBuf<N: generic_array::ArrayLength> {
@@ -35,6 +112,12 @@ impl<N: generic_array::ArrayLength> RwBuf<N> {
             buf: generic_array::GenericArray::default(),
         }
     }
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct CommandSequenceExecutor<'a, O: OperatingHooks> {
+    command_sequence: &'a ByteSlice,
+    os_hooks: &'a O,
 }
 
 impl<'a, O: OperatingHooks> CommandSequenceExecutor<'a, O> {
@@ -81,55 +164,48 @@ impl<'a, O: OperatingHooks> CommandSequenceExecutor<'a, O> {
         mut state: ManifestState<'a>,
         component: &'a ComponentInfo,
     ) -> Result<ManifestState<'a>, Error> {
-        let mut decoder = Decoder::new(self.command_sequence);
+        let decoder = Decoder::new(self.command_sequence);
         let mut match_component = true;
-        let length = Self::enter_sequence(&mut decoder)?;
-        for _ in 0..length {
-            let command = decoder.i32()?.into();
+        for command in CommandSequenceIterator::new(decoder)? {
+            let mut command = command?;
             if !match_component {
-                if matches!(command, SuitCommand::SetComponentIndex) {
-                    match_component = component.in_applylist(&mut decoder)?;
-                } else {
-                    decoder.skip()?; // skip argument
+                if matches!(command.command, SuitCommand::SetComponentIndex) {
+                    if let CommandArgument::Cbor(mut decoder) = command.argument {
+                        match_component = component.in_applylist(&mut decoder)?;
+                    }
                 }
             } else {
-                match command {
-                    SuitCommand::Unset => return Err(Error::UnsupportedCommand(command.into())),
-                    SuitCommand::Abort => {
-                        return Err(Error::ConditionMatchFail(decoder.position()))
+                match command.command {
+                    SuitCommand::Unset => {
+                        return Err(Error::UnsupportedCommand(command.command.into()))
                     }
+                    SuitCommand::Abort => return Err(Error::ConditionMatchFail(command.position)),
                     SuitCommand::OverrideParameters => {
-                        state.update_parameter(&mut decoder)?;
+                        state.update_parameter(command.get_argument_cbor()?)?;
                     }
                     SuitCommand::SetComponentIndex => {
-                        match_component = component.in_applylist(&mut decoder)?;
+                        match_component = component.in_applylist(command.get_argument_cbor()?)?;
                     }
                     SuitCommand::CheckContent => {
                         // byte by byte check
                         self.cond_check_content(&state, component.component())?;
-                        Self::decode_reporting_policy(&mut decoder)?;
                     }
                     SuitCommand::ClassIdentifier => {
                         self.cond_class_identifier(&state, component.component())?;
-                        Self::decode_reporting_policy(&mut decoder)?;
                     }
                     SuitCommand::ComponentSlot => {
                         self.cond_component_slot(&state, component.component())?;
-                        Self::decode_reporting_policy(&mut decoder)?;
                     }
                     SuitCommand::Copy => Err(Error::UnsupportedCommand(SuitCommand::Copy.into()))?,
                     SuitCommand::DeviceIdentifier => {
                         self.cond_device_identifier(&state, component.component())?;
-                        Self::decode_reporting_policy(&mut decoder)?;
                     }
                     SuitCommand::Fetch => {
                         self.directive_fetch(&state, component.component())?;
-                        Self::decode_reporting_policy(&mut decoder)?;
                     }
                     SuitCommand::ImageMatch => {
                         // Digest check
                         self.cond_image_match(&state, component.component())?;
-                        Self::decode_reporting_policy(&mut decoder)?;
                     }
 
                     SuitCommand::Invoke => {
@@ -142,15 +218,13 @@ impl<'a, O: OperatingHooks> CommandSequenceExecutor<'a, O> {
                         Err(Error::UnsupportedCommand(SuitCommand::RunSequence.into()))?
                     }
                     SuitCommand::TryEach => {
-                        self.try_each(&mut state, component, &mut decoder)?;
+                        self.try_each(&mut state, component, command.get_argument_cbor()?)?;
                     }
                     SuitCommand::VendorIdentifier => {
                         self.cond_vendor_identifier(&state, component.component())?;
-                        Self::decode_reporting_policy(&mut decoder)?;
                     }
                     SuitCommand::WriteContent => {
                         self.directive_write(&state, component.component())?;
-                        Self::decode_reporting_policy(&mut decoder)?;
                     }
                     SuitCommand::Custom(_n) => todo!(),
                 }
