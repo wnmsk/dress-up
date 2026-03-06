@@ -6,8 +6,9 @@ use minicbor::data::Token;
 use minicbor::decode::Decoder;
 
 use crate::cbor::SubCbor;
-use crate::command::CommandSequenceExecutor;
+use crate::command::{CommandSequenceExecutor, CommandSequenceIterator};
 use crate::component::{ComponentInfo, ComponentIter};
+use crate::consts::SuitCommand;
 use crate::error::Error;
 use crate::manifeststate::ManifestState;
 use crate::{AuthState, Authenticated, OperatingHooks};
@@ -90,12 +91,54 @@ impl<'a> Manifest<'a, Authenticated> {
             .ok_or(Error::NoCommonSection)
     }
 
-    fn decode_common(
-        &self,
-        common: &'a ByteSlice,
-    ) -> Result<(&'a ByteSlice, &'a ByteSlice), Error> {
+    fn component_count(&self) -> Result<usize, Error> {
+        let common_section = self.get_common()?;
+        let mut decoder = Decoder::new(common_section);
+        let len = decoder.map()?.ok_or(Error::InvalidCommonSection)?;
+        for _ in 0..len {
+            let key = decoder.i16()?;
+            if key == crate::consts::SuitCommon::ComponentIdentifiers as i16 {
+                if let Some(num_components) = decoder.array()? {
+                    return Ok(num_components as usize);
+                } else {
+                    return Err(Error::UnexpectedIndefiniteLength(decoder.position()));
+                }
+            }
+        }
+        Err(Error::InvalidCommonSection)
+    }
+
+    fn verify_components(&self, os_hooks: &impl OperatingHooks) -> Result<(), Error> {
+        let (components, _) = self.decode_common()?;
+        let mut decoder = Decoder::new(components);
+        for component in ComponentIter::new(&mut decoder)? {
+            os_hooks.has_component(&component?)?;
+        }
+        Ok(())
+    }
+
+    fn check_shared_sequence(&self) -> Result<bool, Error> {
+        // The shared sequence in the common section must contain a vendor and device class check and
+        // is not allowed to contain any custom command
+        let (_, common) = self.decode_common()?;
+        let decoder = Decoder::new(common);
+        if !CommandSequenceIterator::new(decoder.clone())?
+            .any(|cmd| cmd.is_ok_and(|c| c.command == SuitCommand::VendorIdentifier))
+        {
+            return Ok(false);
+        }
+        if !CommandSequenceIterator::new(decoder.clone())?
+            .any(|cmd| cmd.is_ok_and(|c| c.command == SuitCommand::ClassIdentifier))
+        {
+            return Ok(false);
+        }
+        Ok(true)
+    }
+
+    fn decode_common(&self) -> Result<(&'a ByteSlice, &'a ByteSlice), Error> {
+        let common_section = self.get_common()?;
         // Only contains the component identifiers and the common command sequence
-        let mut decoder = Decoder::new(common);
+        let mut decoder = Decoder::new(common_section);
         let mut components = None;
         let mut commands = None;
         let len = decoder.map()?.ok_or(Error::InvalidCommonSection)?;
@@ -153,11 +196,10 @@ impl<'a> Manifest<'a, Authenticated> {
         section: crate::consts::Manifest,
     ) -> Result<(), Error> {
         let start_state = ManifestState::default();
-        let common = self.get_common()?;
         let section = self
             .find_command_sequence(section)?
             .ok_or(Error::NoCommandSection(section.into()))?;
-        let (components, common) = self.decode_common(common)?;
+        let (components, common) = self.decode_common()?;
         let mut component_decoder = Decoder::new(components);
         for (idx, component) in ComponentIter::new(&mut component_decoder)?.enumerate() {
             if let Ok(component) = component {
@@ -221,8 +263,7 @@ impl<'a> Manifest<'a, Authenticated> {
     /// Execute all command sequences in the manifest.
     pub fn execute_full(&self) -> Result<(), Error> {
         let _state = ManifestState::default();
-        let common = self.get_common()?;
-        let (_components, _common) = self.decode_common(common)?;
+        let (_components, _common) = self.decode_common()?;
         // Separate out per component, common first, then the step
         todo!();
         Ok(())

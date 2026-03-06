@@ -131,6 +131,11 @@ pub trait OperatingHooks {
     /// Get the capacity of what can be installed in the component.
     fn component_capacity(&self, component: &component::Component) -> Result<usize, Error>;
 
+    // Check if the component exists on the system.
+    fn has_component(&self, component: &component::Component) -> Result<(), Error> {
+        self.component_capacity(component).map(|_| ())
+    }
+
     /// Retrieve the payload from the url and store it in the component.
     fn fetch(
         &self,
