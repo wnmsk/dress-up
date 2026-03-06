@@ -221,7 +221,6 @@ impl<'a, S: AuthState> EnvelopeDecoder<'a, S> {
             .ok_or(Error::UnexpectedCbor(decoder.position()))?;
         for _ in 0..len {
             let key = decoder.i16()?;
-            let start = decoder.position();
             if key == search_key.into() {
                 let buffer = decoder.sub_cbor()?;
                 return Ok(Some(buffer.into()));
