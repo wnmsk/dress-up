@@ -22,6 +22,7 @@ impl<'a> Authentication<'a> {
         let len = decoder.array()?;
         let len = len.ok_or(Error::UnexpectedIndefiniteLength(decoder.position()))?;
 
+        // Structure must contain at least one suit_digest and one COSE auth
         if len < 2 {
             return Err(Error::InvalidAuthenticationStructure);
         }
