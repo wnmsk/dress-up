@@ -129,7 +129,7 @@ impl TryFrom<i32> for SuitParameter {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 #[non_exhaustive]
 #[repr(i32)]
 pub enum SuitCommand {
