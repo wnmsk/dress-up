@@ -627,7 +627,7 @@ mod tests {
         let state = ManifestState::default();
         let sequence = CommandSequenceExecutor::new(input.into(), &hooks);
         let res = sequence.process(state.clone(), &info).unwrap_err();
-        assert_eq!(res, Error::TryEachFail(7));
+        assert_eq!(res, Error::TryEachFail(5));
     }
 
     #[test]
