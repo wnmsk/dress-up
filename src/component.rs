@@ -1,4 +1,5 @@
 //! Implements component handling in the SUIT manifest.
+use crate::cbor::SubCbor;
 use crate::error::Error;
 use heapless::string::String;
 use itertools::Itertools;
@@ -31,13 +32,7 @@ pub struct Component<'a> {
 
 impl<'a, C> Decode<'a, C> for Component<'a> {
     fn decode(d: &mut Decoder<'a>, _: &mut C) -> Result<Self, minicbor::decode::Error> {
-        let start = d.position();
-        d.skip()?;
-        let end = d.position();
-        let input = d.input();
-        let cbor = input
-            .get(start..end)
-            .ok_or(minicbor::decode::Error::end_of_input())?;
+        let cbor = d.sub_cbor()?;
         Ok(Component { cbor })
     }
 }

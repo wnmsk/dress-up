@@ -5,6 +5,7 @@ use minicbor::bytes::ByteSlice;
 use minicbor::data::Token;
 use minicbor::decode::Decoder;
 
+use crate::cbor::SubCbor;
 use crate::command::CommandSequenceExecutor;
 use crate::component::{ComponentInfo, ComponentIter};
 use crate::error::Error;
@@ -102,10 +103,7 @@ impl<'a> Manifest<'a, Authenticated> {
             let key = decoder.i16()?;
             match key {
                 2 => {
-                    let start = decoder.position();
-                    decoder.skip()?; // Skip over the full component section
-                    let end = decoder.position();
-                    components = decoder.input().get(start..end).map(|c| c.into());
+                    components = Some(decoder.sub_cbor()?.into());
                 }
                 4 => {
                     commands = Some(decoder.bytes()?.into());

@@ -16,6 +16,7 @@ use minicbor::decode::Decoder;
 use uuid::Uuid;
 
 pub mod auth;
+mod cbor;
 pub mod command;
 pub mod component;
 pub mod consts;
@@ -26,6 +27,7 @@ pub mod manifeststate;
 pub mod report;
 
 use crate::auth::Authentication;
+use crate::cbor::SubCbor;
 use crate::consts::*;
 use crate::error::Error;
 use crate::manifest::Manifest;
@@ -215,13 +217,11 @@ impl<'a, S: AuthState> EnvelopeDecoder<'a, S> {
         for _ in 0..len {
             let key = decoder.i16()?;
             let start = decoder.position();
-            decoder.skip()?;
             if key == search_key.into() {
-                let end = decoder.position();
-                if let Some(buffer) = decoder.input().get(start..end) {
-                    return Ok(Some(buffer.into()));
-                }
-                return Err(Error::UnexpectedCbor(decoder.position()));
+                let buffer = decoder.sub_cbor()?;
+                return Ok(Some(buffer.into()));
+            } else {
+                decoder.skip()?;
             }
         }
         Ok(None)
