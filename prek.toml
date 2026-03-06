@@ -24,4 +24,5 @@ hooks = [
     "--config",
     "format_generated_files=false",
   ], files = "\\.rs$" },
+  { id = "cargo test", name = "cargo test", language = "system", entry = "cargo test", files = "\\.rs$" },
 ]
