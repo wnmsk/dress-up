@@ -12,6 +12,25 @@
 //! manifest. Both must be in for authentication. The other reason is that Dress-Up is zero-copy.
 //! All text and byte strings are references into the CBOR data.
 //!
+//! Dress-up only supports sequential processing of components. Each component described in a
+//! manifest processes serially. This saves the amount of memory required during the manifest
+//! processing.
+//!
+//! ## Supported RFC features
+//!
+//! Dress-Up supports the following features from the SUIT manifest specification:
+//! - Multiple components
+//!
+//! Dress-Up does not yet support the following features:
+//! - Severable elements
+//! - Reporting policy
+//!
+//! Dress-Up will never support the following features. These are out of scope:
+//! - Parallel processing
+//! - Manifest creation
+//!
+//! ## Workflow
+//!
 //! A typical flow with Dress-Up consists of multiple steps:
 //! 1. Start the parsing by creating a [`SuitManifest`].
 //! 2. Authenticate the manifest via [`SuitManifest::authenticate`].
