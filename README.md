@@ -1,20 +1,20 @@
 <img src="docs/logo.svg" width="150" align="right"/>
 
-# 🕴️Dress-Up
+# 🕴️Dress‑Up
 
-Dress-Up provides a parser-only implementation of the [SUIT][suit-rfc] manifest format,
+Dress‑Up provides a parser-only implementation of the [SUIT][suit-rfc] manifest format,
 for `no_std` environments. It relies on [minicbor] for CBOR parsing.
-Dress-Up parses CBOR on the fly during manifest execution and is zero-copy.
+Dress‑Up parses CBOR on the fly during manifest execution and is zero-copy.
 
-Dress-Up is OS-agnostic, it provides a `OperatingHooks` trait
+Dress‑Up is OS-agnostic, it provides a `OperatingHooks` trait
 that allow an operating system to provide integration into the manifest processing.
-While Dress-Up is developed under the Ariel OS banner, it is not tied to Ariel OS.
+While Dress‑Up is developed under the Ariel OS banner, it is not tied to Ariel OS.
 
 🚧 This crate is still under heavy construction 🚧
 
 The full manifest must be in memory during parsing.
 The authentication object covers the inner manifest.
-Both must be in for authentication. The other reason is that Dress-Up is zero-copy.
+Both must be in for authentication. The other reason is that Dress‑Up is zero-copy.
 All text and byte strings are references into the CBOR data.
 
 Dress-up only supports sequential processing of components.
@@ -24,23 +24,23 @@ processing.
 
 ## Supported RFC features
 
-Dress-Up supports the following features from the SUIT manifest specification:
+Dress‑Up supports the following features from the SUIT manifest specification:
 
 - Multiple components
 
-Dress-Up does not yet support the following features:
+Dress‑Up does not yet support the following features:
 
 - Severable elements
 - Reporting policy
 
-Dress-Up will never support the following features. These are out of scope:
+Dress‑Up will never support the following features. These are out of scope:
 
 - Parallel processing
 - Manifest creation
 
 ### SUIT command support
 
-Dress-Up strives to support all commands of the SUIT specification.
+Dress‑Up strives to support all commands of the SUIT specification.
 The commands from the table below are currently supported.
 
 | Command               |    |
@@ -65,7 +65,7 @@ The commands from the table below are currently supported.
 
 ### Parameter support
 
-Dress-Up supports the following parameters
+Dress‑Up supports the following parameters
 
 | Parameter             |    |
 |:----------------------|----|
@@ -93,12 +93,12 @@ This section gives a brief overview of the primary types in this crate.
 - [`manifest::Manifest`]: Contains the inner SUIT manifest. It provides access to the command
   sequences in the manifest.
 - [`OperatingHooks`]: This trait provides the interface to the operating system functions
-  required by Dress-Up. The operating system or application running Dress-Up must provide an
+  required by Dress‑Up. The operating system or application running Dress‑Up must provide an
   implementation.
 
 ## Workflow
 
-A typical flow with Dress-Up consists of multiple steps:
+A typical flow with Dress‑Up consists of multiple steps:
 
 1. Start the parsing by creating a [`SuitManifest`].
 2. Authenticate the manifest via [`SuitManifest::authenticate`].
