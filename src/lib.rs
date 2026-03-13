@@ -329,9 +329,9 @@ impl<'a, S: AuthState> SuitManifest<'a, S> {
 
 impl<'a> SuitManifest<'a, New> {
     /// Create a SUIT manifest from a byte slice.
-    pub fn from_bytes(bytes: &'a [u8]) -> Self {
+    pub fn from_bytes(bytes: &'a impl AsRef<[u8]>) -> Self {
         Self {
-            decoder: Decoder::new(bytes),
+            decoder: Decoder::new(bytes.as_ref()),
             phantom: PhantomData,
         }
     }
