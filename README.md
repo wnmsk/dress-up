@@ -108,7 +108,7 @@ A typical flow with Dress-Up consists of multiple steps:
 
 ## Example
 
-```
+```Rust
 use cbor_edn::StandaloneItem;
 use dress_up::SuitManifest;
 # use minicbor::bytes::ByteSlice;
