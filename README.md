@@ -1,4 +1,5 @@
 <img src="docs/logo.svg" width="150" align="right"/>
+
 # 🕴️Dress-Up
 
 Dress-Up provides a parser-only implementation of the [SUIT][suit-rfc] manifest format,
