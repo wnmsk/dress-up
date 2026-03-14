@@ -8,7 +8,7 @@ use minicbor::bytes::ByteSlice;
 use minicbor::Decoder;
 
 use crate::cbor::SubCbor;
-use crate::component::{Component, ComponentInfo};
+use crate::component::{Component, ComponentInfo, ComponentIter};
 use crate::consts::SuitCommand;
 use crate::error::Error;
 use crate::manifeststate::ManifestState;
@@ -174,9 +174,11 @@ impl<'a> CommandSequence<'a> {
         &self,
         state: ManifestState<'a>,
         component_info: &'a ComponentInfo<'a>,
+        components: &'a ByteSlice,
         os_hooks: &'a impl OperatingHooks,
     ) -> Result<ManifestState<'a>, Error> {
-        let executor = CommandSequenceExecutor::new(self.sequence, self.offset, os_hooks);
+        let executor =
+            CommandSequenceExecutor::new(self.sequence, components, self.offset, os_hooks);
         executor
             .process(state, component_info)
             .map_err(|e| e.add_offset(self.offset))
@@ -228,14 +230,22 @@ impl<'a> CommandSequence<'a> {
 #[derive(Debug, Clone)]
 pub(crate) struct CommandSequenceExecutor<'a, O: OperatingHooks> {
     command_sequence: &'a ByteSlice,
+    // Components list is needed by Copy and swap
+    components: &'a ByteSlice,
     offset: usize,
     os_hooks: &'a O,
 }
 
 impl<'a, O: OperatingHooks> CommandSequenceExecutor<'a, O> {
-    fn new(command_sequence: &'a ByteSlice, offset: usize, os_hooks: &'a O) -> Self {
+    fn new(
+        command_sequence: &'a ByteSlice,
+        components: &'a ByteSlice,
+        offset: usize,
+        os_hooks: &'a O,
+    ) -> Self {
         Self {
             command_sequence,
+            components,
             offset,
             os_hooks,
         }
@@ -257,6 +267,7 @@ impl<'a, O: OperatingHooks> CommandSequenceExecutor<'a, O> {
             let res = CommandSequence::new(sequence, 0).execute(
                 state.clone(),
                 component_info,
+                self.components,
                 self.os_hooks,
             );
             match res {
@@ -319,9 +330,7 @@ impl<'a, O: OperatingHooks> CommandSequenceExecutor<'a, O> {
             SuitCommand::ComponentSlot => {
                 self.cond_component_slot(state, component)?;
             }
-            SuitCommand::Copy => Err(Error::UnsupportedCommand {
-                command: SuitCommand::Copy.into(),
-            })?,
+            SuitCommand::Copy => self.directive_copy(state, component_info, self.components)?,
             SuitCommand::DeviceIdentifier => {
                 self.cond_device_identifier(state, component)?;
             }
@@ -548,6 +557,62 @@ impl<'a, O: OperatingHooks> CommandSequenceExecutor<'a, O> {
         }
     }
 
+    fn directive_copy(
+        &self,
+        state: &ManifestState,
+        component: &ComponentInfo,
+        components: &'a ByteSlice,
+    ) -> Result<(), Error> {
+        let Some(source_index) = state.source_component else {
+            return Err(Error::ParameterNotSet { position: 0 });
+        };
+        if source_index == component.index {
+            return Err(Error::SameSourceAndTarget {
+                identifier: source_index,
+            });
+        }
+        let mut decoder = Decoder::new(components);
+        for (idx, source) in ComponentIter::new(&mut decoder)?.enumerate() {
+            if (idx as u32) == source_index {
+                let source_component = source?;
+                let size = self.os_hooks.component_size(&source_component)?;
+
+                if state.image_digest.is_some() && state.image_size.is_some() {
+                    // Check if data is different before copying
+                    if self.cond_image_match(state, component.component()).is_ok() {
+                        return Ok(());
+                    }
+
+                    // Avoid copy of corrupted image
+                    self.cond_image_match(state, &source_component)?;
+                }
+
+                let mut buf = RwBuf::<O::ReadWriteBufferSize>::new().buf;
+                for offset in (0..size).step_by(buf.len()) {
+                    let diff = size.saturating_sub(offset);
+                    let read_size = if diff < buf.len() { diff } else { buf.len() };
+                    let buf = &mut buf[0..read_size];
+                    self.os_hooks.component_read(
+                        &source_component,
+                        state.component_slot,
+                        offset,
+                        buf,
+                    )?;
+                    self.os_hooks.component_write(
+                        component.component(),
+                        state.component_slot,
+                        offset,
+                        buf,
+                    )?;
+                }
+                return Ok(());
+            }
+        }
+        Err(Error::InvalidSourceComponent {
+            identifier: source_index,
+        })
+    }
+
     fn decode_reporting_policy(decoder: &mut Decoder) -> Result<ReportingPolicy, Error> {
         Ok(decoder.decode::<ReportingPolicy>()?)
     }
@@ -661,13 +726,18 @@ mod tests {
         ComponentInfo::new(component, 0)
     }
 
+    fn create_empty_components() -> &'static ByteSlice {
+        (&[] as &[u8]).into()
+    }
+
     #[test]
     fn invalid_sequence() {
         let input: &[u8] = &std::vec![0x83, 0x14, 0x05, 0x15,];
 
         let hooks = create_test_hooks();
         let info = create_test_component();
-        let sequence = CommandSequenceExecutor::new(input.into(), 0, &hooks);
+        let sequence =
+            CommandSequenceExecutor::new(input.into(), create_empty_components(), 0, &hooks);
         let state = ManifestState::default();
         let res = sequence.process(state, &info).unwrap_err();
         assert_eq!(res, Error::InvalidCommandSequence { position: 0 });
@@ -684,7 +754,8 @@ mod tests {
 
         let hooks = create_test_hooks();
         let info = create_test_component();
-        let sequence = CommandSequenceExecutor::new(input.into(), 0, &hooks);
+        let sequence =
+            CommandSequenceExecutor::new(input.into(), create_empty_components(), 0, &hooks);
         let state = ManifestState::default();
         let res = sequence.process(state, &info).unwrap_err();
         assert_eq!(res, Error::InvalidCommandSequence { position: 0 });
@@ -701,7 +772,8 @@ mod tests {
 
         let hooks = create_test_hooks();
         let info = create_test_component();
-        let sequence = CommandSequenceExecutor::new(input.into(), 0, &hooks);
+        let sequence =
+            CommandSequenceExecutor::new(input.into(), create_empty_components(), 0, &hooks);
         let state = ManifestState::default();
         let res = sequence.process(state, &info).unwrap_err();
         assert_eq!(res, Error::UnsupportedCommand { command: 0 });
@@ -718,7 +790,8 @@ mod tests {
         let state = ManifestState::default();
         let hooks = create_test_hooks();
         let info = create_test_component();
-        let sequence = CommandSequenceExecutor::new(input.into(), 0, &hooks);
+        let sequence =
+            CommandSequenceExecutor::new(input.into(), create_empty_components(), 0, &hooks);
 
         let res = sequence.process(state, &info).unwrap();
         assert_eq!(res.component_slot, None);
@@ -735,7 +808,8 @@ mod tests {
         let state = ManifestState::default();
         let hooks = create_test_hooks();
         let info = create_test_component();
-        let sequence = CommandSequenceExecutor::new(input.into(), 0, &hooks);
+        let sequence =
+            CommandSequenceExecutor::new(input.into(), create_empty_components(), 0, &hooks);
 
         let res = sequence.process(state, &info).unwrap_err();
         assert_eq!(res, Error::ParameterNotSet { position: 1 });
@@ -759,7 +833,8 @@ mod tests {
         ];
 
         let hooks = create_test_hooks();
-        let sequence = CommandSequenceExecutor::new(input.into(), 0, &hooks);
+        let sequence =
+            CommandSequenceExecutor::new(input.into(), create_empty_components(), 0, &hooks);
         let mut state = ManifestState::default();
         let info = create_test_component();
 
@@ -802,7 +877,8 @@ mod tests {
         let hooks = create_test_hooks();
         let info = create_test_component();
 
-        let sequence = CommandSequenceExecutor::new(input.into(), 0, &hooks);
+        let sequence =
+            CommandSequenceExecutor::new(input.into(), create_empty_components(), 0, &hooks);
         let res = sequence.process(state, &info);
         assert!(res.is_ok());
 
@@ -828,7 +904,8 @@ mod tests {
         let info = create_test_component();
 
         let state = ManifestState::default();
-        let sequence = CommandSequenceExecutor::new(input.into(), 0, &hooks);
+        let sequence =
+            CommandSequenceExecutor::new(input.into(), create_empty_components(), 0, &hooks);
         let res = sequence.process(state, &info).unwrap();
         assert_eq!(res.component_slot, Some(2));
 
@@ -845,14 +922,16 @@ mod tests {
         let info = create_test_component();
 
         let state = ManifestState::default();
-        let sequence = CommandSequenceExecutor::new(input.into(), 0, &hooks);
+        let sequence =
+            CommandSequenceExecutor::new(input.into(), create_empty_components(), 0, &hooks);
         let res = sequence.process(state, &info).unwrap_err();
         assert_eq!(res, Error::TryEachFail { position: 5 });
 
         let input: &[u8] =
             &std::vec![0x82, 0x0F, 0x82, 0x43, 0x82, 0x0E, 0x05, 0x43, 0x82, 0x0E, 0x05];
         let state = ManifestState::default();
-        let sequence = CommandSequenceExecutor::new(input.into(), 0, &hooks);
+        let sequence =
+            CommandSequenceExecutor::new(input.into(), create_empty_components(), 0, &hooks);
         let res = sequence.process(state, &info).unwrap_err();
         assert_eq!(res, Error::TryEachFail { position: 9 });
     }
@@ -867,7 +946,8 @@ mod tests {
         let info = create_test_component();
 
         let state = ManifestState::default();
-        let sequence = CommandSequenceExecutor::new(input.into(), 0, &hooks);
+        let sequence =
+            CommandSequenceExecutor::new(input.into(), create_empty_components(), 0, &hooks);
         let res = sequence.process(state, &info).unwrap_err();
         assert_eq!(res, Error::UnsupportedParameter { parameter: 0 });
     }
@@ -881,7 +961,8 @@ mod tests {
         let info = create_test_component();
 
         let state = ManifestState::default();
-        let sequence = CommandSequenceExecutor::new(input.into(), 0, &hooks);
+        let sequence =
+            CommandSequenceExecutor::new(input.into(), create_empty_components(), 0, &hooks);
         let res = sequence.process(state, &info).unwrap();
         assert_eq!(res.component_slot, Some(2));
     }
@@ -893,7 +974,8 @@ mod tests {
         let info = create_test_component();
 
         let state = ManifestState::default();
-        let sequence = CommandSequenceExecutor::new(input.into(), 0, &hooks);
+        let sequence =
+            CommandSequenceExecutor::new(input.into(), create_empty_components(), 0, &hooks);
         let res = sequence.process(state.clone(), &info);
         assert_eq!(res, Ok(state));
 
