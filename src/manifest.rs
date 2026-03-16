@@ -73,22 +73,32 @@ impl<'a, S: AuthState> Manifest<'a, S> {
         Ok(seq_no)
     }
 }
+struct Section<'a> {
+    cbor: &'a ByteSlice,
+    offset: usize,
+}
+
+impl<'a> Section<'a> {
+    fn new(cbor: &'a ByteSlice, offset: usize) -> Self {
+        Section { cbor, offset }
+    }
+}
 
 impl<'a> Manifest<'a, Authenticated> {
     fn find_command_sequence(
         &self,
         section: crate::consts::Manifest,
-    ) -> Result<Option<(&'a ByteSlice, usize)>, Error> {
+    ) -> Result<Option<Section<'a>>, Error> {
         let mut decoder = self.decoder.clone();
         let len = decoder
             .map()?
             .ok_or(Error::UnexpectedCbor(decoder.position()))?;
         for _ in 0..len {
             let key = decoder.i16()?;
-            let position = decoder.position();
+            let offset = decoder.position();
             if key == section.into() {
                 let value = decoder.bytes()?;
-                return Ok(Some((value.into(), position)));
+                return Ok(Some(Section::new(value.into(), offset)));
             } else {
                 decoder.skip()?;
             }
@@ -96,26 +106,26 @@ impl<'a> Manifest<'a, Authenticated> {
         Ok(None)
     }
 
-    fn get_common(&self) -> Result<(&'a ByteSlice, usize), Error> {
+    fn get_common(&self) -> Result<Section<'a>, Error> {
         self.find_command_sequence(crate::consts::Manifest::CommonData)?
             .ok_or(Error::NoCommonSection)
     }
 
     fn component_count(&self) -> Result<usize, Error> {
-        let (common_section, common_offset) = self.get_common()?;
-        let mut decoder = Decoder::new(common_section);
+        let common_section = self.get_common()?;
+        let mut decoder = Decoder::new(common_section.cbor);
         let len = decoder.map()?.ok_or(Error::InvalidCommonSection)?;
         for _ in 0..len {
             let key = decoder.i16()?;
             if key == crate::consts::SuitCommon::ComponentIdentifiers as i16 {
                 if let Some(num_components) = decoder
                     .array()
-                    .map_err(|e| Error::from(e).add_offset(common_offset))?
+                    .map_err(|e| Error::from(e).add_offset(common_section.offset))?
                 {
                     return Ok(num_components as usize);
                 } else {
                     return Err(Error::UnexpectedIndefiniteLength(decoder.position()))
-                        .map_err(|e| e.add_offset(common_offset));
+                        .map_err(|e| e.add_offset(common_section.offset));
                 }
             }
         }
@@ -154,9 +164,9 @@ impl<'a> Manifest<'a, Authenticated> {
     }
 
     fn decode_common(&self) -> Result<(&'a ByteSlice, &'a ByteSlice, usize), Error> {
-        let (common_section, common_offset) = self.get_common()?;
+        let common_section = self.get_common()?;
         // Only contains the component identifiers and the common command sequence
-        let mut decoder = Decoder::new(common_section);
+        let mut decoder = Decoder::new(common_section.cbor);
         let mut components = None;
         let mut commands = None;
         let len = decoder.map()?.ok_or(Error::InvalidCommonSection)?;
@@ -173,7 +183,7 @@ impl<'a> Manifest<'a, Authenticated> {
             }
         }
         if let (Some(components), Some(commands)) = (components, commands) {
-            Ok((components, commands, common_offset))
+            Ok((components, commands, common_section.offset))
         } else {
             Err(Error::InvalidCommonSection)
         }
@@ -214,7 +224,7 @@ impl<'a> Manifest<'a, Authenticated> {
         section: crate::consts::Manifest,
     ) -> Result<(), Error> {
         let start_state = ManifestState::default();
-        let (section, section_offset) = self
+        let command_section = self
             .find_command_sequence(section)?
             .ok_or(Error::NoCommandSection(section.into()))?;
         let (components, common, common_offset) = self.decode_common()?;
@@ -233,10 +243,10 @@ impl<'a> Manifest<'a, Authenticated> {
                 let state = common_sequence
                     .process(start_state.clone(), &component_info)
                     .map_err(|e| e.add_offset(common_offset))?;
-                let section = CommandSequenceExecutor::new(section, os_hooks);
+                let section = CommandSequenceExecutor::new(command_section.cbor, os_hooks);
                 section
                     .process(state, &component_info)
-                    .map_err(|e| e.add_offset(section_offset))?;
+                    .map_err(|e| e.add_offset(command_section.offset))?;
             }
         }
         Ok(())

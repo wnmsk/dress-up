@@ -17,9 +17,7 @@ use crate::OperatingHooks;
 #[derive(Clone, Debug)]
 pub(crate) enum CommandArgument<'a> {
     Report(ReportingPolicy),
-    // Argument block + offset of the block
-    // We keep offset for error correction
-    Cbor(Decoder<'a>, usize),
+    Cbor { decoder: Decoder<'a>, offset: usize },
 }
 
 impl<'a> CommandArgument<'a> {
@@ -30,7 +28,10 @@ impl<'a> CommandArgument<'a> {
         } else {
             let offset = d.position();
             let bytes = d.sub_cbor()?;
-            Ok(CommandArgument::Cbor(Decoder::new(bytes), offset))
+            Ok(CommandArgument::Cbor {
+                decoder: Decoder::new(bytes),
+                offset,
+            })
         }
     }
 }
@@ -44,14 +45,17 @@ pub(crate) struct Command<'a> {
 
 impl<'a> Command<'a> {
     fn get_argument_cbor<'b>(&'b mut self) -> Result<&'b mut Decoder<'a>, Error> {
-        if let CommandArgument::Cbor(ref mut decoder, _) = self.argument {
+        if let CommandArgument::Cbor {
+            ref mut decoder, ..
+        } = self.argument
+        {
             return Ok(decoder);
         }
         Err(Error::InvalidCommandSequence(0))
     }
 
     fn get_argument_offset(&self) -> usize {
-        if let CommandArgument::Cbor(_, offset) = self.argument {
+        if let CommandArgument::Cbor { offset, .. } = self.argument {
             offset
         } else {
             0
@@ -186,10 +190,14 @@ impl<'a, O: OperatingHooks> CommandSequenceExecutor<'a, O> {
             let mut command = command?;
             if !match_component {
                 if matches!(command.command, SuitCommand::SetComponentIndex) {
-                    if let CommandArgument::Cbor(mut decoder, arg_offset) = command.argument {
+                    if let CommandArgument::Cbor {
+                        ref mut decoder,
+                        offset,
+                    } = command.argument
+                    {
                         match_component = component
-                            .in_applylist(&mut decoder)
-                            .map_err(|e| e.add_offset(arg_offset))?;
+                            .in_applylist(decoder)
+                            .map_err(|e| e.add_offset(offset))?;
                     }
                 }
             } else {
