@@ -146,6 +146,10 @@ impl<'a, O: OperatingHooks> CommandSequenceExecutor<'a, O> {
                 *state = res;
                 return Ok(());
             }
+            // Bail out on any error except the ConditionMatchFail
+            if !matches!(res, Err(Error::ConditionMatchFail(_))) {
+                return res.map(|_| ());
+            }
         }
         Err(Error::TryEachFail(decoder.position()))
     }
@@ -629,6 +633,35 @@ mod tests {
         let sequence = CommandSequenceExecutor::new(input.into(), &hooks);
         let res = sequence.process(state.clone(), &info).unwrap_err();
         assert_eq!(res, Error::TryEachFail(5));
+    }
+
+    #[test]
+    fn try_each_invalid() {
+        let input: &[u8] = &std::vec![
+            0x82, 0x0F, 0x82, 0x45, 0x82, 0x14, 0xA1, 0x00, 0x02, 0x45, 0x82, 0x14, 0xA1, 0x05,
+            0x02,
+        ];
+        let hooks = create_test_hooks();
+        let info = create_test_component();
+
+        let state = ManifestState::default();
+        let sequence = CommandSequenceExecutor::new(input.into(), &hooks);
+        let res = sequence.process(state.clone(), &info).unwrap_err();
+        assert_eq!(res, Error::UnsupportedParameter(0));
+    }
+
+    #[test]
+    fn try_each_first() {
+        let input: &[u8] = &std::vec![
+            0x82, 0x0F, 0x82, 0x45, 0x82, 0x14, 0xA1, 0x05, 0x02, 0x43, 0x82, 0x0E, 0x05
+        ];
+        let hooks = create_test_hooks();
+        let info = create_test_component();
+
+        let state = ManifestState::default();
+        let sequence = CommandSequenceExecutor::new(input.into(), &hooks);
+        let res = sequence.process(state.clone(), &info).unwrap();
+        assert_eq!(res.component_slot, Some(2));
     }
 
     #[test]
