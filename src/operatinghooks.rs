@@ -97,4 +97,11 @@ pub trait OperatingHooks {
             command: SuitCommand::Fetch.into(),
         })
     }
+
+    /// Swap the the payload between two component.
+    fn swap(&self, _component: &Component, _other: &Component) -> Result<(), Error> {
+        Err(Error::UnsupportedCommand {
+            command: SuitCommand::Swap.into(),
+        })
+    }
 }
