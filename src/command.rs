@@ -347,9 +347,7 @@ impl<'a, O: OperatingHooks> CommandSequenceExecutor<'a, O> {
             SuitCommand::RunSequence => Err(Error::UnsupportedCommand {
                 command: SuitCommand::RunSequence.into(),
             })?,
-            SuitCommand::Swap => Err(Error::UnsupportedCommand {
-                command: SuitCommand::RunSequence.into(),
-            })?,
+            SuitCommand::Swap => self.directive_swap(state, component_info, self.components)?,
             SuitCommand::TryEach => {
                 let mut argument = command.get_argument_cbor()?.clone();
                 self.try_each(state, component_info, &mut argument)?
@@ -605,6 +603,82 @@ impl<'a, O: OperatingHooks> CommandSequenceExecutor<'a, O> {
                         buf,
                     )?;
                 }
+                return Ok(());
+            }
+        }
+        Err(Error::InvalidSourceComponent {
+            identifier: source_index,
+        })
+    }
+
+    fn directive_swap(
+        &self,
+        state: &ManifestState,
+        component: &ComponentInfo,
+        components: &'a ByteSlice,
+    ) -> Result<(), Error> {
+        let Some(source_index) = state.source_component else {
+            return Err(Error::ParameterNotSet { position: 0 });
+        };
+        if source_index == component.index {
+            return Err(Error::SameSourceAndTarget {
+                identifier: source_index,
+            });
+        }
+        let mut decoder = Decoder::new(components);
+        for (idx, source) in ComponentIter::new(&mut decoder)?.enumerate() {
+            if (idx as u32) == source_index {
+                let source_component = source?;
+
+                if state.image_digest.is_some() && state.image_size.is_some() {
+                    // Check if data is different before copying
+                    if self.cond_image_match(state, component.component()).is_ok() {
+                        return Ok(());
+                    }
+
+                    // Avoid copy of corrupted image
+                    self.cond_image_match(state, &source_component)?;
+                }
+
+                let source_size = self.os_hooks.component_size(&source_component)?;
+
+                let mut read_source_buf = RwBuf::<O::ReadWriteBufferSize>::new().buf;
+                let mut read_target_buf = RwBuf::<O::ReadWriteBufferSize>::new().buf;
+
+                for offset in (0..source_size).step_by(read_source_buf.len()) {
+                    let diff = source_size.saturating_sub(offset);
+                    let read_size = if diff < read_source_buf.len() {
+                        diff
+                    } else {
+                        read_source_buf.len()
+                    };
+
+                    self.os_hooks.component_read(
+                        &source_component,
+                        state.component_slot,
+                        offset,
+                        &mut read_source_buf[0..read_size],
+                    )?;
+                    self.os_hooks.component_read(
+                        component.component(),
+                        state.component_slot,
+                        offset,
+                        &mut read_target_buf[0..read_size],
+                    )?;
+                    self.os_hooks.component_write(
+                        &source_component,
+                        state.component_slot,
+                        offset,
+                        &read_target_buf[0..read_size],
+                    )?;
+                    self.os_hooks.component_write(
+                        component.component(),
+                        state.component_slot,
+                        offset,
+                        &read_source_buf[0..read_size],
+                    )?;
+                }
+
                 return Ok(());
             }
         }
