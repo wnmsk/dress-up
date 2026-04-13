@@ -618,7 +618,7 @@ mod tests {
         let info = create_test_component();
         let sequence = CommandSequenceExecutor::new(input.into(), 0, &hooks);
         let state = ManifestState::default();
-        let res = sequence.process(state.clone(), &info).unwrap_err();
+        let res = sequence.process(state, &info).unwrap_err();
         assert_eq!(res, Error::UnsupportedCommand { command: 0 });
     }
 
@@ -683,7 +683,7 @@ mod tests {
         let info = create_test_component();
 
         let sequence = CommandSequenceExecutor::new(input.into(), 0, &hooks);
-        let res = sequence.process(state.clone(), &info);
+        let res = sequence.process(state, &info);
         assert!(res.is_ok());
     }
 
@@ -699,7 +699,7 @@ mod tests {
 
         let state = ManifestState::default();
         let sequence = CommandSequenceExecutor::new(input.into(), 0, &hooks);
-        let res = sequence.process(state.clone(), &info).unwrap();
+        let res = sequence.process(state, &info).unwrap();
         assert_eq!(res.component_slot, Some(2));
     }
 
@@ -726,7 +726,7 @@ mod tests {
 
         let state = ManifestState::default();
         let sequence = CommandSequenceExecutor::new(input.into(), 0, &hooks);
-        let res = sequence.process(state.clone(), &info).unwrap_err();
+        let res = sequence.process(state, &info).unwrap_err();
         assert_eq!(res, Error::UnsupportedParameter { parameter: 0 });
     }
 
@@ -740,7 +740,7 @@ mod tests {
 
         let state = ManifestState::default();
         let sequence = CommandSequenceExecutor::new(input.into(), 0, &hooks);
-        let res = sequence.process(state.clone(), &info).unwrap();
+        let res = sequence.process(state, &info).unwrap();
         assert_eq!(res.component_slot, Some(2));
     }
 
