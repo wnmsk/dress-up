@@ -152,12 +152,12 @@ impl<'a> CommandSequence<'a> {
     pub(crate) fn execute(
         &self,
         state: ManifestState<'a>,
-        component: &'a ComponentInfo<'a>,
+        component_info: &'a ComponentInfo<'a>,
         os_hooks: &'a impl OperatingHooks,
     ) -> Result<ManifestState<'a>, Error> {
         let executor = CommandSequenceExecutor::new(self.sequence, self.offset, os_hooks);
         executor
-            .process(state, component)
+            .process(state, component_info)
             .map_err(|e| e.add_offset(self.offset))
     }
 
@@ -189,7 +189,7 @@ impl<'a, O: OperatingHooks> CommandSequenceExecutor<'a, O> {
     fn try_each(
         &self,
         state: &mut ManifestState<'a>,
-        component: &'a ComponentInfo<'a>,
+        component_info: &'a ComponentInfo<'a>,
         decoder: &mut Decoder<'a>,
     ) -> Result<(), Error> {
         for sequence in decoder.array_iter::<&ByteSlice>()? {
@@ -197,8 +197,11 @@ impl<'a, O: OperatingHooks> CommandSequenceExecutor<'a, O> {
             if sequence.is_empty() {
                 return Ok(());
             }
-            let res =
-                CommandSequence::new(sequence, 0).execute(state.clone(), component, self.os_hooks);
+            let res = CommandSequence::new(sequence, 0).execute(
+                state.clone(),
+                component_info,
+                self.os_hooks,
+            );
             if let Ok(res) = res {
                 *state = res;
                 return Ok(());
@@ -227,7 +230,7 @@ impl<'a, O: OperatingHooks> CommandSequenceExecutor<'a, O> {
     pub(crate) fn process(
         &self,
         mut state: ManifestState<'a>,
-        component: &'a ComponentInfo<'a>,
+        component_info: &'a ComponentInfo<'a>,
     ) -> Result<ManifestState<'a>, Error> {
         let mut match_component = true;
         for command in CommandSequenceIterator::new(self.command_sequence, self.offset)? {
@@ -239,12 +242,13 @@ impl<'a, O: OperatingHooks> CommandSequenceExecutor<'a, O> {
                         offset,
                     } = command.argument
                     {
-                        match_component = component
+                        match_component = component_info
                             .in_applylist(decoder)
                             .map_err(|e| e.add_offset(offset))?;
                     }
                 }
             } else {
+                let component = component_info.component();
                 let argument_offset = command.get_argument_offset();
                 match command.command {
                     SuitCommand::Unset => {
@@ -264,32 +268,32 @@ impl<'a, O: OperatingHooks> CommandSequenceExecutor<'a, O> {
                             .map_err(|e| e.add_offset(argument_offset))?;
                     }
                     SuitCommand::SetComponentIndex => {
-                        match_component = component
+                        match_component = component_info
                             .in_applylist(command.get_argument_cbor()?)
                             .map_err(|e| e.add_offset(argument_offset))?;
                     }
                     SuitCommand::CheckContent => {
                         // byte by byte check
-                        self.cond_check_content(&state, component.component())?;
+                        self.cond_check_content(&state, component)?;
                     }
                     SuitCommand::ClassIdentifier => {
-                        self.cond_class_identifier(&state, component.component())?;
+                        self.cond_class_identifier(&state, component)?;
                     }
                     SuitCommand::ComponentSlot => {
-                        self.cond_component_slot(&state, component.component())?;
+                        self.cond_component_slot(&state, component)?;
                     }
                     SuitCommand::Copy => Err(Error::UnsupportedCommand {
                         command: SuitCommand::Copy.into(),
                     })?,
                     SuitCommand::DeviceIdentifier => {
-                        self.cond_device_identifier(&state, component.component())?;
+                        self.cond_device_identifier(&state, component)?;
                     }
                     SuitCommand::Fetch => {
-                        self.directive_fetch(&state, component.component())?;
+                        self.directive_fetch(&state, component)?;
                     }
                     SuitCommand::ImageMatch => {
                         // Digest check
-                        self.cond_image_match(&state, component.component())?;
+                        self.cond_image_match(&state, component)?;
                     }
 
                     SuitCommand::Invoke => Err(Error::UnsupportedCommand {
@@ -303,14 +307,14 @@ impl<'a, O: OperatingHooks> CommandSequenceExecutor<'a, O> {
                     })?,
                     SuitCommand::TryEach => {
                         let mut argument = command.get_argument_cbor()?.clone();
-                        self.try_each(&mut state, component, &mut argument)
+                        self.try_each(&mut state, component_info, &mut argument)
                             .map_err(|e| e.add_offset(argument_offset))?;
                     }
                     SuitCommand::VendorIdentifier => {
-                        self.cond_vendor_identifier(&state, component.component())?;
+                        self.cond_vendor_identifier(&state, component)?;
                     }
                     SuitCommand::WriteContent => {
-                        self.directive_write(&state, component.component())?;
+                        self.directive_write(&state, component)?;
                     }
                     SuitCommand::Custom(_n) => todo!(),
                 }
