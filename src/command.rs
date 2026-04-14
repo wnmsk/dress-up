@@ -238,6 +238,80 @@ impl<'a, O: OperatingHooks> CommandSequenceExecutor<'a, O> {
         Ok(length)
     }
 
+    fn process_command(
+        &self,
+        state: &mut ManifestState<'a>,
+        component_info: &'a ComponentInfo<'a>,
+        match_component: &mut bool,
+        mut command: Command<'a>,
+    ) -> Result<(), Error> {
+        let component = component_info.component();
+        let argument_offset = command.get_argument_offset();
+        match command.command {
+            SuitCommand::Unset => {
+                return Err(Error::UnsupportedCommand {
+                    command: command.command.into(),
+                })
+            }
+            SuitCommand::Abort => {
+                return Err(Error::ConditionMatchFail {
+                    position: command.position,
+                })
+            }
+            SuitCommand::OverrideParameters => {
+                let mut argument = command.get_argument_cbor()?.clone();
+                state
+                    .update_parameter(&mut argument)
+                    .map_err(|e| e.add_offset(argument_offset))?;
+            }
+            SuitCommand::SetComponentIndex => {
+                *match_component = component_info.in_applylist(command.get_argument_cbor()?)?;
+            }
+            SuitCommand::CheckContent => {
+                // byte by byte check
+                self.cond_check_content(state, component)?;
+            }
+            SuitCommand::ClassIdentifier => self.cond_class_identifier(state, component)?,
+            SuitCommand::ComponentSlot => {
+                self.cond_component_slot(state, component)?;
+            }
+            SuitCommand::Copy => Err(Error::UnsupportedCommand {
+                command: SuitCommand::Copy.into(),
+            })?,
+            SuitCommand::DeviceIdentifier => {
+                self.cond_device_identifier(state, component)?;
+            }
+            SuitCommand::Fetch => {
+                self.directive_fetch(state, component)?;
+            }
+            SuitCommand::ImageMatch => {
+                // Digest check
+                self.cond_image_match(state, component)?;
+            }
+            SuitCommand::Invoke => Err(Error::UnsupportedCommand {
+                command: SuitCommand::Invoke.into(),
+            })?,
+            SuitCommand::RunSequence => Err(Error::UnsupportedCommand {
+                command: SuitCommand::RunSequence.into(),
+            })?,
+            SuitCommand::Swap => Err(Error::UnsupportedCommand {
+                command: SuitCommand::RunSequence.into(),
+            })?,
+            SuitCommand::TryEach => {
+                let mut argument = command.get_argument_cbor()?.clone();
+                self.try_each(state, component_info, &mut argument)?
+            }
+            SuitCommand::VendorIdentifier => {
+                self.cond_vendor_identifier(state, component)?;
+            }
+            SuitCommand::WriteContent => {
+                self.directive_write(state, component)?;
+            }
+            SuitCommand::Custom(_n) => todo!(),
+        }
+        Ok(())
+    }
+
     pub(crate) fn process(
         &self,
         mut state: ManifestState<'a>,
@@ -246,6 +320,7 @@ impl<'a, O: OperatingHooks> CommandSequenceExecutor<'a, O> {
         let mut match_component = true;
         for command in CommandSequenceIterator::new(self.command_sequence, self.offset)? {
             let mut command = command?;
+            let position = command.position;
             if !match_component {
                 if matches!(command.command, SuitCommand::SetComponentIndex) {
                     if let CommandArgument::Cbor {
@@ -259,76 +334,8 @@ impl<'a, O: OperatingHooks> CommandSequenceExecutor<'a, O> {
                     }
                 }
             } else {
-                let component = component_info.component();
-                let argument_offset = command.get_argument_offset();
-                match command.command {
-                    SuitCommand::Unset => {
-                        return Err(Error::UnsupportedCommand {
-                            command: command.command.into(),
-                        })
-                    }
-                    SuitCommand::Abort => {
-                        return Err(Error::ConditionMatchFail {
-                            position: command.position,
-                        })
-                    }
-                    SuitCommand::OverrideParameters => {
-                        let mut argument = command.get_argument_cbor()?.clone();
-                        state
-                            .update_parameter(&mut argument)
-                            .map_err(|e| e.add_offset(argument_offset))?;
-                    }
-                    SuitCommand::SetComponentIndex => {
-                        match_component = component_info
-                            .in_applylist(command.get_argument_cbor()?)
-                            .map_err(|e| e.add_offset(argument_offset))?;
-                    }
-                    SuitCommand::CheckContent => {
-                        // byte by byte check
-                        self.cond_check_content(&state, component)?;
-                    }
-                    SuitCommand::ClassIdentifier => {
-                        self.cond_class_identifier(&state, component)?
-                    }
-                    SuitCommand::ComponentSlot => {
-                        self.cond_component_slot(&state, component)?;
-                    }
-                    SuitCommand::Copy => Err(Error::UnsupportedCommand {
-                        command: SuitCommand::Copy.into(),
-                    })?,
-                    SuitCommand::DeviceIdentifier => {
-                        self.cond_device_identifier(&state, component)?;
-                    }
-                    SuitCommand::Fetch => {
-                        self.directive_fetch(&state, component)?;
-                    }
-                    SuitCommand::ImageMatch => {
-                        // Digest check
-                        self.cond_image_match(&state, component)?;
-                    }
-
-                    SuitCommand::Invoke => Err(Error::UnsupportedCommand {
-                        command: SuitCommand::Invoke.into(),
-                    })?,
-                    SuitCommand::RunSequence => Err(Error::UnsupportedCommand {
-                        command: SuitCommand::RunSequence.into(),
-                    })?,
-                    SuitCommand::Swap => Err(Error::UnsupportedCommand {
-                        command: SuitCommand::RunSequence.into(),
-                    })?,
-                    SuitCommand::TryEach => {
-                        let mut argument = command.get_argument_cbor()?.clone();
-                        self.try_each(&mut state, component_info, &mut argument)
-                            .map_err(|e| e.add_offset(argument_offset))?;
-                    }
-                    SuitCommand::VendorIdentifier => {
-                        self.cond_vendor_identifier(&state, component)?;
-                    }
-                    SuitCommand::WriteContent => {
-                        self.directive_write(&state, component)?;
-                    }
-                    SuitCommand::Custom(_n) => todo!(),
-                }
+                self.process_command(&mut state, component_info, &mut match_component, command)
+                    .map_err(|e| e.add_offset(position))?;
             }
         }
         Ok(state)
@@ -651,6 +658,18 @@ mod tests {
     }
 
     #[test]
+    fn missing_parameter() {
+        let input: &[u8] = &std::vec![0x82, 0x01, 0x05];
+        let state = ManifestState::default();
+        let hooks = create_test_hooks();
+        let info = create_test_component();
+        let sequence = CommandSequenceExecutor::new(input.into(), 0, &hooks);
+
+        let res = sequence.process(state, &info).unwrap_err();
+        assert_eq!(res, Error::ParameterNotSet { position: 1 });
+    }
+
+    #[test]
     fn simple_sequence() {
         let input: &[u8] = &std::vec![
             0x86, 0x14, 0xA4, 0x01, 0x50, 0xFA, 0x6B, 0x4A, 0x53, 0xD5, 0xAD, 0x5F, 0xDF, 0xBE,
@@ -729,6 +748,13 @@ mod tests {
         let sequence = CommandSequenceExecutor::new(input.into(), 0, &hooks);
         let res = sequence.process(state, &info).unwrap_err();
         assert_eq!(res, Error::TryEachFail { position: 5 });
+
+        let input: &[u8] =
+            &std::vec![0x82, 0x0F, 0x82, 0x43, 0x82, 0x0E, 0x05, 0x43, 0x82, 0x0E, 0x05];
+        let state = ManifestState::default();
+        let sequence = CommandSequenceExecutor::new(input.into(), 0, &hooks);
+        let res = sequence.process(state, &info).unwrap_err();
+        assert_eq!(res, Error::TryEachFail { position: 9 });
     }
 
     #[test]
