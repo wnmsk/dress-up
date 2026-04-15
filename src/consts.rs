@@ -6,6 +6,14 @@ pub const SUIT_TAG_ENVELOPE: Tag = Tag::new(107);
 /// SUIT manifest encoding version support.
 pub const SUIT_SUPPORTED_VERSION: u8 = 1;
 
+/// SUIT command sections in order of execution
+pub const SUIT_COMMAND_SECTIONS: [Manifest; 5] = [
+    Manifest::PayloadFetch,
+    Manifest::PayloadInstallation,
+    Manifest::ImageValidation,
+    Manifest::ImageLoading,
+    Manifest::ImageInvocation,
+];
 /// Suit envelope elements
 ///
 /// All elements are bstr wrapped.
