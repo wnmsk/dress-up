@@ -11,16 +11,36 @@ use minicbor::decode::{ArrayIter, Decode, Decoder};
 /// The parameter in a SUIT manifest can be set to a specific index, or by specifying 'true' as
 /// parameter, all components can be referenced.
 #[derive(Copy, Clone, PartialEq, Debug)]
-pub enum ComponentIndex {
+enum ComponentIndex<'a> {
     /// Command sequence applies to all components.
     All,
     /// Command sequence applies to only to the component with this index.
     Index(u32),
+    /// Command sequence applies to a set of components
+    Set(&'a ByteSlice),
 }
 
-impl ComponentIndex {
+impl<'a> ComponentIndex<'a> {
     fn is_all(&self) -> bool {
         matches!(self, Self::All)
+    }
+
+    fn in_set(&self, index: u32) -> bool {
+        match self {
+            ComponentIndex::All => true,
+            ComponentIndex::Index(i) => *i == index,
+            ComponentIndex::Set(arr) => Self::in_array(arr, index),
+        }
+    }
+
+    /// Checks if the current component is in the array of components set as active. Returns false
+    /// on a CBOR error
+    fn in_array(arr: &ByteSlice, index: u32) -> bool {
+        let mut dec = Decoder::new(arr);
+        if let Ok(mut iter) = dec.array_iter::<u32>() {
+            return iter.any(|i| i.is_ok_and(|i| i == index));
+        }
+        false
     }
 }
 
