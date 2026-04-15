@@ -306,4 +306,19 @@ impl SuitCommand {
             SuitCommand::Custom(_) => false,
         }
     }
+
+    /// Returns true if the command has side effects.
+    ///
+    /// Returns true for custom commands as these might have side effects.
+    pub fn has_side_effect(&self) -> bool {
+        matches!(
+            self,
+            SuitCommand::WriteContent
+                | SuitCommand::Fetch
+                | SuitCommand::Copy
+                | SuitCommand::Invoke
+                | SuitCommand::Swap
+                | SuitCommand::Custom(_)
+        )
+    }
 }
