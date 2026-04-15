@@ -110,6 +110,24 @@ impl<'a> Manifest<'a, Authenticated> {
             .and_then(|(cbor, offset)| CommonSection::new(cbor, offset))
     }
 
+    // Checks if the first command in a command sequence is a SetComponentIndex, if there is more
+    // than one component in the manifest
+    fn check_sequences(&self) -> Result<bool, Error> {
+        if self.get_common()?.component_count()? > 1 {
+            for section in crate::consts::SUIT_COMMAND_SECTIONS {
+                if let Some(command_sequence) = self.find_command_sequence(section)? {
+                    if let Some(command) = command_sequence.iter()?.next() {
+                        let command = command?;
+                        if command.command != crate::consts::SuitCommand::SetComponentIndex {
+                            return Ok(false);
+                        }
+                    }
+                }
+            }
+        }
+        Ok(true)
+    }
+
     fn has_section(&self, section: crate::consts::Manifest) -> Result<bool, Error> {
         self.find_command_sequence(section).map(|s| s.is_some())
     }
@@ -304,17 +322,28 @@ impl<'a> CommonSection<'a> {
     fn verify_shared_sequence(&self) -> Result<bool, Error> {
         // The shared sequence in the common section must contain a vendor and device class check and
         // is not allowed to contain any custom command
+        //
+        // TODO: recurse into try-each and run-sequence commands
         if !self
-            .shared_sequence
+            .shared_sequence()
             .iter()?
             .any(|cmd| cmd.is_ok_and(|c| c.command == SuitCommand::VendorIdentifier))
         {
             return Ok(false);
         }
         if !self
-            .shared_sequence
+            .shared_sequence()
             .iter()?
             .any(|cmd| cmd.is_ok_and(|c| c.command == SuitCommand::VendorIdentifier))
+        {
+            return Ok(false);
+        }
+
+        // Custom commands and commands with side effects are not permitted in the common section
+        if !self
+            .shared_sequence()
+            .iter()?
+            .any(|cmd| cmd.is_ok_and(|c| c.command.has_side_effect()))
         {
             return Ok(false);
         }
