@@ -16,7 +16,7 @@ use crate::report::ReportingPolicy;
 use crate::OperatingHooks;
 
 bitflags! {
-    #[derive(Copy, Clone, Debug, PartialEq)]
+    #[derive(Copy, Clone, Debug, PartialEq, Default)]
     pub(crate) struct CommandSequenceProperties: u32 {
         const HasCustom = 0x01;
         const HasSideEffects = 0x02;
@@ -32,12 +32,6 @@ impl CommandSequenceProperties {
 
     pub(crate) fn has_custom_commands(self) -> bool {
         self.contains(Self::HasCustom)
-    }
-}
-
-impl Default for CommandSequenceProperties {
-    fn default() -> Self {
-        Self(Default::default())
     }
 }
 
