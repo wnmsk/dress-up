@@ -1,6 +1,7 @@
 //! Provides SUIT command decoding
 //!
 //! The command decoding covers parsing and execution for command sequences in a SUIT manifest.
+use bitflags::bitflags;
 use ctutils::{Choice, CtEq};
 use digest::Update;
 use minicbor::bytes::ByteSlice;
@@ -13,6 +14,32 @@ use crate::error::Error;
 use crate::manifeststate::ManifestState;
 use crate::report::ReportingPolicy;
 use crate::OperatingHooks;
+
+bitflags! {
+    #[derive(Copy, Clone, Debug, PartialEq)]
+    pub(crate) struct CommandSequenceProperties: u32 {
+        const HasCustom = 0x01;
+        const HasSideEffects = 0x02;
+        const HasVendorCheck = 0x04;
+        const HasClassCheck = 0x08;
+    }
+}
+
+impl CommandSequenceProperties {
+    pub(crate) fn valid_shared_sequence(self) -> bool {
+        self == Self::HasVendorCheck | Self::HasClassCheck
+    }
+
+    pub(crate) fn has_custom_commands(self) -> bool {
+        self.contains(Self::HasCustom)
+    }
+}
+
+impl Default for CommandSequenceProperties {
+    fn default() -> Self {
+        Self(Default::default())
+    }
+}
 
 #[derive(Clone, Debug)]
 pub(crate) enum CommandArgument<'a> {
@@ -168,6 +195,40 @@ impl<'a> CommandSequence<'a> {
     pub(crate) fn iter(&self) -> Result<CommandSequenceIterator<'_>, Error> {
         CommandSequenceIterator::new(self.sequence, self.offset)
     }
+
+    fn add_properties(
+        &self,
+        mut content: CommandSequenceProperties,
+    ) -> Result<CommandSequenceProperties, Error> {
+        for command in CommandSequenceIterator::new(self.sequence, self.offset)? {
+            let mut command = command?;
+            if command.command.has_side_effect() {
+                content.set(CommandSequenceProperties::HasSideEffects, true);
+            } else if matches!(command.command, crate::consts::SuitCommand::Custom(_)) {
+                content.set(CommandSequenceProperties::HasCustom, true);
+            } else if command.command == crate::consts::SuitCommand::VendorIdentifier {
+                content.set(CommandSequenceProperties::HasVendorCheck, true);
+            } else if command.command == crate::consts::SuitCommand::ClassIdentifier {
+                content.set(CommandSequenceProperties::HasClassCheck, true);
+            } else if command.command == crate::consts::SuitCommand::TryEach {
+                // inspect the commands inside
+                let mut decoder = command.get_argument_cbor()?.clone();
+                for sequence in decoder.array_iter::<&ByteSlice>()? {
+                    let sequence = sequence?;
+                    if sequence.is_empty() {
+                        continue;
+                    }
+                    content = CommandSequence::new(sequence, 0).add_properties(content)?
+                }
+            }
+        }
+        Ok(content)
+    }
+
+    pub(crate) fn properties(&self) -> Result<CommandSequenceProperties, Error> {
+        let content = CommandSequenceProperties::default();
+        self.add_properties(content)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -193,7 +254,7 @@ impl<'a, O: OperatingHooks> CommandSequenceExecutor<'a, O> {
         decoder: &mut Decoder<'a>,
     ) -> Result<(), Error> {
         let mut err_position = 0;
-        let input = decoder.input();
+        let input = decoder.input(); // used for getting the position of the error
         for sequence in decoder.array_iter::<&ByteSlice>()? {
             let sequence = sequence?;
             if sequence.is_empty() {
@@ -619,6 +680,11 @@ mod tests {
         let state = ManifestState::default();
         let res = sequence.process(state, &info).unwrap_err();
         assert_eq!(res, Error::InvalidCommandSequence { position: 0 });
+
+        let sequence = CommandSequence::new(input.into(), 0);
+        let properties = sequence.properties();
+        let res = properties.unwrap_err();
+        assert_eq!(res, Error::InvalidCommandSequence { position: 0 });
     }
 
     #[test]
@@ -630,6 +696,11 @@ mod tests {
         let sequence = CommandSequenceExecutor::new(input.into(), 0, &hooks);
         let state = ManifestState::default();
         let res = sequence.process(state, &info).unwrap_err();
+        assert_eq!(res, Error::InvalidCommandSequence { position: 0 });
+
+        let sequence = CommandSequence::new(input.into(), 0);
+        let properties = sequence.properties();
+        let res = properties.unwrap_err();
         assert_eq!(res, Error::InvalidCommandSequence { position: 0 });
     }
 
@@ -643,6 +714,11 @@ mod tests {
         let state = ManifestState::default();
         let res = sequence.process(state, &info).unwrap_err();
         assert_eq!(res, Error::UnsupportedCommand { command: 0 });
+
+        let sequence = CommandSequence::new(input.into(), 0);
+        let properties = sequence.properties();
+        let res = properties.unwrap();
+        assert_eq!(res, CommandSequenceProperties::default());
     }
 
     #[test]
@@ -655,6 +731,11 @@ mod tests {
 
         let res = sequence.process(state, &info).unwrap();
         assert_eq!(res.component_slot, None);
+
+        let sequence = CommandSequence::new(input.into(), 0);
+        let properties = sequence.properties();
+        let res = properties.unwrap();
+        assert_eq!(res, CommandSequenceProperties::default());
     }
 
     #[test]
@@ -667,6 +748,11 @@ mod tests {
 
         let res = sequence.process(state, &info).unwrap_err();
         assert_eq!(res, Error::ParameterNotSet { position: 1 });
+
+        let sequence = CommandSequence::new(input.into(), 0);
+        let properties = sequence.properties();
+        let res = properties.unwrap();
+        assert_eq!(res, CommandSequenceProperties::HasVendorCheck);
     }
 
     #[test]
@@ -700,6 +786,14 @@ mod tests {
         state.set_image_size(34768);
 
         assert_eq!(res.unwrap(), state);
+
+        let sequence = CommandSequence::new(input.into(), 0);
+        let properties = sequence.properties();
+        let res = properties.unwrap();
+        assert_eq!(
+            res,
+            CommandSequenceProperties::HasVendorCheck | CommandSequenceProperties::HasClassCheck
+        );
     }
 
     #[test]
@@ -720,6 +814,16 @@ mod tests {
         let sequence = CommandSequenceExecutor::new(input.into(), 0, &hooks);
         let res = sequence.process(state, &info);
         assert!(res.is_ok());
+
+        let sequence = CommandSequence::new(input.into(), 0);
+        let properties = sequence.properties();
+        let res = properties.unwrap();
+        assert_eq!(
+            res,
+            CommandSequenceProperties::HasSideEffects
+                | CommandSequenceProperties::HasVendorCheck
+                | CommandSequenceProperties::HasClassCheck
+        );
     }
 
     #[test]
@@ -736,6 +840,11 @@ mod tests {
         let sequence = CommandSequenceExecutor::new(input.into(), 0, &hooks);
         let res = sequence.process(state, &info).unwrap();
         assert_eq!(res.component_slot, Some(2));
+
+        let sequence = CommandSequence::new(input.into(), 0);
+        let properties = sequence.properties();
+        let res = properties.unwrap();
+        assert_eq!(res, CommandSequenceProperties::default());
     }
 
     #[test]
@@ -796,5 +905,10 @@ mod tests {
         let sequence = CommandSequenceExecutor::new(input.into(), 0, &hooks);
         let res = sequence.process(state.clone(), &info);
         assert_eq!(res, Ok(state));
+
+        let sequence = CommandSequence::new(input.into(), 0);
+        let properties = sequence.properties();
+        let res = properties.unwrap();
+        assert_eq!(res, CommandSequenceProperties::default());
     }
 }

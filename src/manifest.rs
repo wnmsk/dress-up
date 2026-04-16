@@ -8,7 +8,6 @@ use minicbor::decode::Decoder;
 use crate::cbor::SubCbor;
 use crate::command::CommandSequence;
 use crate::component::{ComponentInfo, ComponentIter};
-use crate::consts::SuitCommand;
 use crate::error::Error;
 use crate::manifeststate::ManifestState;
 use crate::{AuthState, Authenticated, OperatingHooks};
@@ -324,33 +323,8 @@ impl<'a> CommonSection<'a> {
     }
 
     fn verify_shared_sequence(&self) -> Result<bool, Error> {
-        // The shared sequence in the common section must contain a vendor and device class check and
-        // is not allowed to contain any custom command
-        //
-        // TODO: recurse into try-each and run-sequence commands
-        if !self
-            .shared_sequence()
-            .iter()?
-            .any(|cmd| cmd.is_ok_and(|c| c.command == SuitCommand::VendorIdentifier))
-        {
-            return Ok(false);
-        }
-        if !self
-            .shared_sequence()
-            .iter()?
-            .any(|cmd| cmd.is_ok_and(|c| c.command == SuitCommand::VendorIdentifier))
-        {
-            return Ok(false);
-        }
-
-        // Custom commands and commands with side effects are not permitted in the common section
-        if !self
-            .shared_sequence()
-            .iter()?
-            .any(|cmd| cmd.is_ok_and(|c| c.command.has_side_effect()))
-        {
-            return Ok(false);
-        }
-        Ok(true)
+        self.shared_sequence()
+            .properties()
+            .map(|p| p.valid_shared_sequence())
     }
 }

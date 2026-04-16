@@ -10,6 +10,7 @@ keywords = ["suit", "updates", "cbor"]
 categories = ["embedded", "no-std"]
 
 [dependencies]
+bitflags = { version = "2.11.1", default-features = false }
 ctutils = "0.4.2"
 digest = { version = "0.10.7", default-features = false }
 generic-array = { version = "1.3.5", features = ["const-default"] }
