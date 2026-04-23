@@ -49,6 +49,10 @@ pub enum Error {
     NoComponentList,
     /// No manifest object found inside the SUIT envelope.
     NoManifestObject,
+    /// No manifest encoding version found inside the manifest object.
+    NoManifestVersion,
+    /// No manifest sequence number found inside the manifest object.
+    NoSequenceNumber,
     /// Parameter required for the condition is not set.
     ParameterNotSet {
         /// Position of the command for which the parameter is not set in the manifest.
@@ -147,6 +151,8 @@ impl core::fmt::Display for Error {
             }
             Self::NoComponentList => write!(f, "no component list found in manifest"),
             Self::NoManifestObject => write!(f, "no Manifest object in manifest"),
+            Self::NoManifestVersion => write!(f, "no Manifest version in manifest"),
+            Self::NoSequenceNumber => write!(f, "no Manifest sequence number in manifest"),
             Self::ParameterNotSet { position } => {
                 write!(f, "parameter required for condition at {position} not set")
             }
