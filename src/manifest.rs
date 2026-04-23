@@ -40,36 +40,40 @@ impl<'a, S: AuthState> Manifest<'a, S> {
     /// Retrieve the SUIT manifest encoding version number in the manifest.
     pub fn version(&self) -> Result<u8, Error> {
         let mut decoder = self.decoder.clone();
-        let version = decoder
-            .map_iter::<i16, Token>()?
-            .find_map(|item| match item {
-                Ok((key, value)) if key == crate::consts::Manifest::EncodingVersion.into() => {
-                    Some(value)
+        let len = decoder.map()?.ok_or(Error::UnexpectedIndefiniteLength {
+            position: decoder.position(),
+        })?;
+        for _ in 0..len {
+            let key = decoder.i16()?;
+            if key == crate::consts::Manifest::EncodingVersion.into() {
+                let version = decoder.u8()?;
+                if version == crate::consts::SUIT_SUPPORTED_VERSION {
+                    return Ok(version);
+                } else {
+                    return Err(Error::UnsupportedManifestVersion);
                 }
-                _ => None,
-            });
-        if let Some(Token::U8(version)) = version {
-            if version == crate::consts::SUIT_SUPPORTED_VERSION {
-                return Ok(version);
+            } else {
+                decoder.skip()?;
             }
         }
-        Err(Error::UnsupportedManifestVersion)
+        Err(Error::NoManifestVersion)
     }
 
     /// Retrieve the manifest sequence number in the manifest.
     pub fn sequence_number(&self) -> Result<u64, Error> {
         let mut decoder = self.decoder.clone();
-        let seq_no = decoder
-            .map_iter::<i16, Token>()?
-            .find_map(|item| match item {
-                Ok((key, value)) if key == crate::consts::Manifest::SequenceNumber.into() => {
-                    Some(value)
-                }
-                _ => None,
-            })
-            .ok_or(Error::UnsupportedManifestVersion)?;
-        let seq_no = try_into_u64(seq_no)?;
-        Ok(seq_no)
+        let len = decoder.map()?.ok_or(Error::UnexpectedIndefiniteLength {
+            position: decoder.position(),
+        })?;
+        for _ in 0..len {
+            let key = decoder.i16()?;
+            if key == crate::consts::Manifest::SequenceNumber.into() {
+                return Ok(decoder.u64()?);
+            } else {
+                decoder.skip()?;
+            }
+        }
+        Err(Error::NoSequenceNumber)
     }
 }
 
