@@ -202,6 +202,7 @@ pub mod digest;
 pub mod error;
 pub mod manifest;
 pub mod manifeststate;
+pub mod operatinghooks;
 pub mod report;
 
 use crate::auth::Authentication;
@@ -209,6 +210,8 @@ use crate::cbor::SubCbor;
 use crate::consts::*;
 use crate::error::Error;
 use crate::manifest::Manifest;
+
+pub use crate::operatinghooks::OperatingHooks;
 
 /// Authentication state of the manifest
 pub trait AuthState {}
@@ -238,98 +241,6 @@ pub struct SuitManifest<'a, S: AuthState> {
 pub struct Envelope<'a, S: AuthState> {
     decoder: Decoder<'a>,
     phantom: PhantomData<S>,
-}
-
-/// A trait to expose operating system functionality to the SUIT manifest parsing
-///
-/// A SUIT manifest contains a set of check and directives to verify the applicability of the
-/// payload, retrieve the payload and install payload. Often this requires input from the operating
-/// system.
-pub trait OperatingHooks {
-    /// The size of the intermediate buffer used during reads and writes with components.
-    ///
-    /// This determines the size of a stack-allocated buffer used. Conditions execution write in
-    /// this buffer when content from a component is required for the condition. The Digest
-    /// and the Content check use this buffer.
-    type ReadWriteBufferSize: ArrayLength;
-
-    /// Match the vendor ID from the manifest.
-    ///
-    /// Installations without multiple components can ignore the `component` parameter.
-    fn match_vendor_id(&self, uuid: Uuid, component: &component::Component) -> Result<bool, Error>;
-
-    /// Match the class ID from the manifest.
-    ///
-    /// Installations without multiple components can ignore the `component` parameter.
-    fn match_class_id(&self, uuid: Uuid, component: &component::Component) -> Result<bool, Error>;
-
-    /// Match the device ID from the manifest.
-    ///
-    /// Installations without multiple components can ignore the `component` parameter.
-    fn match_device_id(
-        &self,
-        _uuid: Uuid,
-        _component: &component::Component,
-    ) -> Result<bool, Error> {
-        Err(Error::UnsupportedCommand {
-            command: SuitCommand::DeviceIdentifier.into(),
-        })
-    }
-
-    /// Verify that the component slot index of the supplied component is valid
-    ///
-    /// Some components can have multiple slots to install into. This condition allows the
-    /// to verify that the target slot is valid.
-    fn match_component_slot(
-        &self,
-        _component: &component::Component,
-        _component_slot: u64,
-    ) -> Result<bool, Error> {
-        Err(Error::UnsupportedCommand {
-            command: SuitCommand::DeviceIdentifier.into(),
-        })
-    }
-
-    /// Read the data from a component (with slot) into the supplied buffer.
-    fn component_read(
-        &self,
-        component: &component::Component,
-        slot: Option<u64>,
-        offset: usize,
-        bytes: &mut [u8],
-    ) -> Result<(), Error>;
-
-    /// Write the supplied data into the component (with slot).
-    fn component_write(
-        &self,
-        component: &component::Component,
-        slot: Option<u64>,
-        offset: usize,
-        bytes: &[u8],
-    ) -> Result<(), Error>;
-
-    /// Get the size of the component installed.
-    fn component_size(&self, component: &component::Component) -> Result<usize, Error>;
-
-    /// Get the capacity of what can be installed in the component.
-    fn component_capacity(&self, component: &component::Component) -> Result<usize, Error>;
-
-    /// Check if the component exists on the system.
-    fn has_component(&self, component: &component::Component) -> Result<(), Error> {
-        self.component_capacity(component).map(|_| ())
-    }
-
-    /// Retrieve the payload from the url and store it in the component.
-    fn fetch(
-        &self,
-        _component: &component::Component,
-        _slot: Option<u64>,
-        _uri: &str,
-    ) -> Result<(), Error> {
-        Err(Error::UnsupportedCommand {
-            command: SuitCommand::Fetch.into(),
-        })
-    }
 }
 
 impl<'a, S: AuthState> SuitManifest<'a, S> {
@@ -385,22 +296,16 @@ impl<'a> SuitManifest<'a, New> {
 impl<'a> SuitManifest<'a, Authenticated> {}
 
 impl<'a, S: AuthState> Envelope<'a, S> {
-    fn from_manifest(manifest: &SuitManifest<'a, S>) -> Self {
-        let decoder = manifest.decoder.clone();
-        Self {
-            decoder,
-            phantom: PhantomData,
-        }
-    }
-
     fn get_object(&self, search_key: SuitEnvelope) -> Result<Option<&'a ByteSlice>, Error> {
         let mut decoder = self.decoder.clone();
-        Ok(decoder
+        decoder
             .map_iter::<i16, &ByteSlice>()?
             .find_map(|item| match item {
-                Ok((key, item)) if key == search_key.into() => Some(item),
+                Ok((key, item)) if key == search_key.into() => Some(Ok(item)),
+                Err(e) => Some(Err(e.into())),
                 _ => None,
-            }))
+            })
+            .transpose()
     }
 
     fn get_object_wrapped(&self, search_key: SuitEnvelope) -> Result<Option<&'a ByteSlice>, Error> {
@@ -511,5 +416,14 @@ bz/m4rVlnIXbwK07HypLbAmBMcCjbazR14vTgdzfsJwFLbM5kdtzOLSolg==
                 Ok(true)
             })
             .unwrap();
+    }
+
+    #[test]
+    fn test_hang_on_eof() {
+        let input = &[0xd8, 0x6b, 0xbf];
+        let manifest = SuitManifest::from_bytes(&input);
+        let envelope = manifest.envelope().unwrap();
+        let auth_err = envelope.auth_object().unwrap_err();
+        assert_eq!(auth_err, Error::EndOfInput);
     }
 }
