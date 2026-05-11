@@ -128,14 +128,11 @@ fn build_key(pub_key: Vec<u8>) -> CoseKey {
     key
 }
 
-// const MAX_INPUT_LEN: usize = 256 * 1024;
-
 fuzz_target!(|data: &[u8]| {
-    // if data.len() > MAX_INPUT_LEN {
-    //     return;
-    // }
-
     let workspace = env!("CARGO_MANIFEST_DIR");
+
+    let selector = data.get(0).copied().unwrap_or(0);
+    let input = data.get(1..).unwrap_or(data);
 
     // class_id and vendor_id taken from minimal example
     // TODO: check if this makes any difference
@@ -147,12 +144,11 @@ fuzz_target!(|data: &[u8]| {
 
     // use payload.bin as in the example
     // TODO: randomize payload content
-    let payload_path: PathBuf = [workspace, "fuzz", "payload.bin"].iter().collect();
-    eprintln!("{payload_path:?}");
+    let payload_path: PathBuf = [workspace, "payload.bin"].iter().collect();
     let payload = std::fs::read(payload_path).expect("payload.bin should be available");
     let hooks = OsHooks::new(4096, vendor_id, class_id, &payload);
 
-    let suit = SuitManifest::from_bytes(&data);
+    let suit = SuitManifest::from_bytes(&input);
 
     // circumvent authentication by just returning true
     if let Ok(suit) = suit.authenticate(|cose, payload| {
@@ -169,9 +165,42 @@ fuzz_target!(|data: &[u8]| {
     }) {
         if let Ok(envelope) = suit.envelope() {
             if let Ok(manifest) = envelope.manifest() {
-                let _ = manifest.execute_payload_installation(&hooks);
-                // TODO: test with other functions of authenticated manifest
-                // let _ = manifest.
+                // randomly select which function is called based on first byte of data
+                match selector % 10 {
+                    0 => {
+                        let _ = manifest.has_payload_fetch();
+                    }
+                    1 => {
+                        let _ = manifest.has_payload_installation();
+                    }
+                    2 => {
+                        let _ = manifest.has_image_validation();
+                    }
+                    3 => {
+                        let _ = manifest.has_image_loading();
+                    }
+                    4 => {
+                        let _ = manifest.has_invoke();
+                    }
+                    5 => {
+                        let _ = manifest.execute_payload_fetch(&hooks);
+                    }
+                    6 => {
+                        let _ = manifest.execute_payload_installation(&hooks);
+                    }
+                    7 => {
+                        let _ = manifest.execute_image_validation(&hooks);
+                    }
+                    8 => {
+                        let _ = manifest.execute_image_loading(&hooks);
+                    }
+                    9 => {
+                        let _ = manifest.execute_invoke(&hooks);
+                    }
+                    _ => {
+                        let _ = manifest.execute_full(&hooks);
+                    }
+                }
             }
         }
     }
