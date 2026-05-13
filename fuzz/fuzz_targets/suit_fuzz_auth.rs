@@ -106,31 +106,7 @@ impl<'a> OperatingHooks for OsHooks<'a> {
     }
 }
 
-fn build_key(pub_key: Vec<u8>) -> CoseKey {
-    // Parse EC public key into coordinates
-    let pub_key = openssl::ec::EcKey::public_key_from_pem(&pub_key).unwrap();
-    let coordinates = pub_key.public_key();
-    let group = pub_key.group();
-    let mut x = openssl::bn::BigNum::new().unwrap();
-    let mut y = openssl::bn::BigNum::new().unwrap();
-    let mut ctx = openssl::bn::BigNumContext::new().unwrap();
-    coordinates
-        .affine_coordinates_gfp(&group, &mut x, &mut y, &mut ctx)
-        .unwrap();
-
-    let mut key = CoseKey::new();
-    key.kty(cose::keys::EC2);
-    key.alg(cose::algs::ES256);
-    key.crv(cose::keys::P_256);
-    key.x(x.to_vec());
-    key.y(y.to_vec());
-    key.key_ops(vec![cose::keys::KEY_OPS_VERIFY]);
-    key
-}
-
 fuzz_target!(|data: &[u8]| {
-    let workspace = env!("CARGO_MANIFEST_DIR");
-
     let selector = data.get(0).copied().unwrap_or(0);
     let input = data.get(1..).unwrap_or(data);
 
@@ -139,30 +115,14 @@ fuzz_target!(|data: &[u8]| {
     let class_id = uuid!("019c9a96-347b-7d98-acc9-b90117f4a665");
     let vendor_id = uuid!("019c9a95-f6cb-71a7-a0a6-aac148fc4743");
 
-    // let pub_key = std::fs::read("public.pem").expect("public.pem should be available");
-    // let key = build_key(pub_key);
-
-    // use payload.bin as in the example
-    // TODO: randomize payload content
-    let payload_path: PathBuf = [workspace, "payload.bin"].iter().collect();
-    let payload = std::fs::read(payload_path).expect("payload.bin should be available");
-    let hooks = OsHooks::new(4096, vendor_id, class_id, &payload);
+    // use sample string as payload like in example
+    let payload = "hello world!";
+    let hooks = OsHooks::new(4096, vendor_id, class_id, payload.as_bytes());
 
     let suit = SuitManifest::from_bytes(&input);
 
-    // circumvent authentication by just returning true
-    if let Ok(suit) = suit.authenticate(|cose, payload| {
-        // let mut verify = CoseMessage::new_sign();
-        // verify.bytes = cose.to_vec();
-        // verify
-        //     .init_decoder(Some(payload.to_vec()))
-        //     .map_err(|_| Error::AuthenticationFailure)?;
-        // verify.key(&key).map_err(|_| Error::AuthenticationFailure)?;
-        // verify
-        //     .decode(None, None)
-        //     .map_err(|_| Error::AuthenticationFailure)?;
-        Ok(true)
-    }) {
+    // circumvent authentication by just returning true in closure
+    if let Ok(suit) = suit.authenticate(|_, _| Ok(true)) {
         if let Ok(envelope) = suit.envelope() {
             if let Ok(manifest) = envelope.manifest() {
                 // randomly select which function is called based on first byte of data
