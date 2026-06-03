@@ -26,11 +26,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup (install Rust nightly & cargo-fuzz)
+      - name: Setup (install Rust nightly, cargo-fuzz, coverage tools)
         run: |
           rustup update nightly 
           rustup default nightly
           cargo install cargo-fuzz
+          rustup component add --toolchain nightly llvm-tools-preview
 
       # only running 1min for testing purposes TODO: change back to 1h
       - name: Run fuzz target
