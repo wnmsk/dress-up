@@ -15,6 +15,10 @@ fi
 TARGET="$1"
 REPORT_DIR="cov_reports"
 
+# use direct binary path since 'cargo cov' doesn't seem to work on the VM
+# --> https://github.com/rust-fuzz/cargo-fuzz/issues/308
+LLVM_COV_BIN="${HOME}/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/x86_64-unknown-linux-gnu/bin/llvm-cov"
+
 # create report directory
 mkdir -p "${REPORT_DIR}";
 
@@ -29,7 +33,7 @@ COV_PROFILE="${COV_DIR}/coverage.profdata"
 BIN_PATH="target/x86_64-unknown-linux-gnu/coverage/x86_64-unknown-linux-gnu/release/${TARGET}"
 
 echo "Creating HTML coverage report → ${HTML_OUT} ..."
-cargo cov -- \
+"${LLVM_COV_BIN}" \
     show "${BIN_PATH}" \
     --format=html \
     -instr-profile="${COV_PROFILE}" \
@@ -40,7 +44,7 @@ cargo cov -- \
 TXT_OUT="${REPORT_DIR}/cov_${TARGET}.txt"
 
 echo "Creating textual coverage report → ${TXT_OUT} ..."
-cargo cov -- \
+"${LLVM_COV_BIN}" \
     report "${BIN_PATH}" \
     -instr-profile="${COV_PROFILE}" \
     -ignore-filename-regex='/.cargo/|/.rustup/|/fuzz_targets/' \
