@@ -33,15 +33,26 @@ jobs:
           cargo install cargo-fuzz
           rustup component add --toolchain nightly llvm-tools-preview
 
-      # only running 1min for testing purposes TODO: change back to 1h
       - name: Run fuzz target
-        run: cargo fuzz run ${{ matrix.target }} -- -timeout=30 -max_total_time=60 
+        run: cargo fuzz run ${{ matrix.target }} -- -timeout=30 -max_total_time=60
 
       - name: Create code coverage reports
         run: ./fuzz/fuzz_cov.sh ${{ matrix.target }}
 
+      - name: Archive fuzzing corpus
+        uses: actions/upload-artifact@v4
+        with: 
+          name: ${{ matrix.target }}-fuzz-corpus
+          path: fuzz/corpus/*
+
+      - name: Archive fuzzing artifacts
+        uses: actions/upload-artifact@v4
+        with: 
+          name: ${{ matrix.target }}-fuzz-artifacts
+          path: fuzz/artifacts/*
+
       - name: Archive code coverage reports
         uses: actions/upload-artifact@v4
         with: 
-          name: code-coverage-reports
+          name: ${{ matrix.target }}-code-coverage-reports
           path: cov_reports/*
