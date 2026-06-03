@@ -23,13 +23,24 @@ jobs:
     name: ${{ matrix.name }}
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Install Rust nightly
-        run: rustup update nightly && rustup default nightly
+      - name: Setup (install Rust nightly & cargo-fuzz)
+        run: |
+          rustup update nightly 
+          rustup default nightly
+          cargo install cargo-fuzz
 
-      - name: Install cargo-fuzz
-        run: cargo install cargo-fuzz
-
+      # only running 1min for testing purposes TODO: change back to 1h
       - name: Run fuzz target
-        run: cargo fuzz run ${{ matrix.target }} -- -max_total_time=3600
+        run: cargo fuzz run ${{ matrix.target }} -- -timeout=30 -max_total_time=60 
+
+      - name: Create code coverage reports
+        run: ./fuzz/fuzz_cov.sh ${{ matrix.target }}
+
+      - name: Archive code coverage reports
+        uses: actions/upload-artifact@v4
+        with: 
+          name: code-coverage-reports
+          path: cov_reports/*
