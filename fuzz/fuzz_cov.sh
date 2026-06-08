@@ -13,7 +13,7 @@ if [[ $# -ne 1 ]]; then
 fi
 
 TARGET="$1"
-REPORT_DIR="cov_reports"
+REPORT_DIR="cov_reports/$(date +%Y-%m-%d_%H%M%S)"
 
 # use direct binary path since 'cargo cov' doesn't seem to work on the VM
 # --> https://github.com/rust-fuzz/cargo-fuzz/issues/308
