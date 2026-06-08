@@ -2,8 +2,7 @@
 
 use libfuzzer_sys::fuzz_target;
 
-use cose::{keys::CoseKey, message::CoseMessage};
-use std::{cell::Cell, path::PathBuf};
+use std::cell::Cell;
 use uuid::{uuid, Uuid};
 
 use dress_up::{error::Error, OperatingHooks, SuitManifest};
