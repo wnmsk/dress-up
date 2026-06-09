@@ -199,8 +199,7 @@ fuzz_target!(|data: &[u8]| {
                         let _ = manifest.has_payload_installation();
                     }
                     2 => {
-                        // let _ = manifest.has_image_validation();
-                        panic!(); // for testing TODO: revert
+                        let _ = manifest.has_image_validation();
                     }
                     3 => {
                         let _ = manifest.has_image_loading();
