@@ -268,21 +268,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "dress-up-fuzz"
-version = "0.0.0"
-dependencies = [
- "cbor-edn",
- "cose-rust",
- "digest 0.10.7",
- "dress-up",
- "generic-array 1.3.5",
- "libfuzzer-sys",
- "openssl",
- "sha2 0.11.0",
- "uuid",
-]
-
-[[package]]
 name = "either"
 version = "1.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -317,6 +302,21 @@ name = "foreign-types-shared"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "00b0228411908ca8685dba7fc2cdd70ec9990a6e753e89b6ac91a84c40fbaf4b"
+
+[[package]]
+name = "fuzz"
+version = "0.0.0"
+dependencies = [
+ "cbor-edn",
+ "cose-rust",
+ "digest 0.10.7",
+ "dress-up",
+ "generic-array 1.3.5",
+ "libfuzzer-sys",
+ "openssl",
+ "sha2 0.11.0",
+ "uuid",
+]
 
 [[package]]
 name = "generic-array"
