@@ -33,26 +33,36 @@ jobs:
           cargo install cargo-fuzz
           rustup component add --toolchain nightly llvm-tools-preview
 
+      - name: Compute timestamp (for naming archives)
+        id: ts
+        shell: bash
+        run: |
+          echo "stamp=$(date -u +'%Y%m%d_%H%M%S')" >> "$GITHUB_OUTPUT"
+
       - name: Run fuzz target
         run: cargo fuzz run ${{ matrix.target }} -- -timeout=30 -max_total_time=3600
 
       - name: Create code coverage reports
+        if: ${{ always() }}
         run: ./fuzz/fuzz_cov.sh ${{ matrix.target }}
 
       - name: Archive fuzzing corpus
+        if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with: 
-          name: ${{ matrix.target }}-fuzz-corpus
+          name: ${{ steps.ts.outputs.stamp }}_${{ matrix.target }}-corpus
           path: fuzz/corpus/*
 
       - name: Archive fuzzing artifacts
+        if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with: 
-          name: ${{ matrix.target }}-fuzz-artifacts
+          name: ${{ steps.ts.outputs.stamp }}_${{ matrix.target }}-artifacts
           path: fuzz/artifacts/*
 
       - name: Archive code coverage reports
+        if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with: 
-          name: ${{ matrix.target }}-code-coverage-reports
+          name: ${{ steps.ts.outputs.stamp }}_${{ matrix.target }}-code-coverage-reports
           path: cov_reports/*
