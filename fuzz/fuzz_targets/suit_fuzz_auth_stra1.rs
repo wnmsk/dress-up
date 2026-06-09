@@ -7,6 +7,7 @@ use std::cell::Cell;
 use uuid::{uuid, Uuid};
 
 use dress_up::{error::Error, OperatingHooks, SuitManifest};
+use fuzz::consts::CborConsts;
 
 // OsHooks copied from examples/minimal/main.rs
 struct OsHooks<'a> {
@@ -110,18 +111,22 @@ fn cbor_bstr_header(len: usize) -> Vec<u8> {
     // Major type 2 (byte string): initial byte is 0b010_aaaaa == 0x40 + additional info
     if len <= 23 {
         // additional info = len
-        vec![0x40u8 + (len as u8)]
+        vec![CborConsts::bstr_len_small(len as u8)]
     } else if len <= 0xff {
         // additional info = 24, followed by 1-byte length
-        vec![0x58, len as u8]
+        vec![CborConsts::BSTR_LEN_U8, len as u8]
     } else if len <= 0xffff {
         // additional info = 25, followed by 2-byte length (big-endian)
-        vec![0x59, ((len >> 8) & 0xff) as u8, (len & 0xff) as u8]
+        vec![
+            CborConsts::BSTR_LEN_U16,
+            ((len >> 8) & 0xff) as u8,
+            (len & 0xff) as u8,
+        ]
     } else if len <= 0xffff_ffff {
         // additional info = 26, followed by 4-byte length (big-endian)
         let n = len as u32;
         vec![
-            0x5a,
+            CborConsts::BSTR_LEN_U32,
             ((n >> 24) & 0xff) as u8,
             ((n >> 16) & 0xff) as u8,
             ((n >> 8) & 0xff) as u8,
@@ -131,7 +136,7 @@ fn cbor_bstr_header(len: usize) -> Vec<u8> {
         // additional info = 27, followed by 8-byte length (big-endian)
         let n = len as u64;
         vec![
-            0x5b,
+            CborConsts::BSTR_LEN_U64,
             ((n >> 56) & 0xff) as u8,
             ((n >> 48) & 0xff) as u8,
             ((n >> 40) & 0xff) as u8,
@@ -155,39 +160,40 @@ fn gen_auth(manifest: &[u8]) -> Vec<u8> {
     // hash the manifest TODO: implement oher hash algs
     let man_hash = Sha256::digest(man);
 
-    // --- auth digest ---
-    let mut auth_digest: Vec<u8> = vec![];
-    auth_digest.push(0x82); // array(2)
-    auth_digest.push(0x2f); // algorithm (here -16 --> SHA256)
-    auth_digest.extend(cbor_bstr_header(man_hash.len())); // length header for manifest hash
-    auth_digest.extend(man_hash); // actual hash from manifest
+    // --- digest container ---
+    let mut digest_cont: Vec<u8> = vec![];
+    digest_cont.push(CborConsts::array(2)); // Array with 2 fields
+    digest_cont.push(CborConsts::ALG_SHA_256); // digest algorithm (here Sha256) TODO: implement other hash algs
+    digest_cont.extend(cbor_bstr_header(man_hash.len())); // length header for manifest hash
+    digest_cont.extend(man_hash); // actual hash from manifest
 
     // --- auth block ---
     let mut auth_block: Vec<u8> = vec![];
-    auth_block.push(0x82); // array(2)
-    auth_block.extend(cbor_bstr_header(auth_digest.len())); // length of digest
-    auth_block.extend(auth_digest); // digest block
+    auth_block.push(CborConsts::array(2)); // Array with 2 fields
+    auth_block.extend(cbor_bstr_header(digest_cont.len())); // length of digest
+    auth_block.extend(digest_cont); // digest block
 
     // --- COSE ---
-    auth_block.push(0x40); // empty field (placeholder for COSE block)
+    auth_block.push(CborConsts::BSTR_MAJOR_BASE); // empty bstr (placeholder for COSE block)
 
     auth_block
 }
 
 fn build_envelope(auth_block: &[u8], manifest: &[u8]) -> Vec<u8> {
     // --- envelope header ---
-    let mut envlp: Vec<u8> = vec![0xd8, 0x6b]; // Tag 107 (SUIT Manifest)
-    envlp.push(0xa2); // map(2)
+    let mut envlp: Vec<u8> = vec![];
+    envlp.extend(CborConsts::MANIFEST_TAG); // Tag for SUIT Manifest
+    envlp.push(CborConsts::map(2)); // map with 2 entries
 
     // --- auth block header ---
-    envlp.push(0x02); // key "Authentication"
+    envlp.push(CborConsts::ENVLP_AUTHENTICATION); // envelop key "Authentication"
     envlp.extend(cbor_bstr_header(auth_block.len())); // auth block length
 
     // --- auth block ---
     envlp.extend_from_slice(auth_block);
 
     // --- manifest header ---
-    envlp.push(0x03); // key "Manifest"
+    envlp.push(CborConsts::ENVLP_MANIFEST); // envelop key "Manifest"
     envlp.extend(cbor_bstr_header(manifest.len())); // manifest length
 
     // --- inner manifest ---
