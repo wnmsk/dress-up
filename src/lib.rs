@@ -187,11 +187,8 @@
 //! [suit-rfc]: https://datatracker.ietf.org/doc/html/draft-ietf-suit-manifest-34
 use core::marker::PhantomData;
 
-use generic_array::ArrayLength;
 use minicbor::bytes::ByteSlice;
 use minicbor::decode::Decoder;
-
-use uuid::Uuid;
 
 pub mod auth;
 mod cbor;
