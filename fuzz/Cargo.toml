@@ -30,13 +30,6 @@ openssl = "0.10.77"
 sha2 = "0.11.0"
 
 [[bin]]
-name = "suit_fuzz_minimal_1"
-path = "fuzz_targets/suit_fuzz_minimal_1.rs"
-test = false
-doc = false
-bench = false
-
-[[bin]]
 name = "suit_fuzz_unauth"
 path = "fuzz_targets/suit_fuzz_unauth.rs"
 test = false
@@ -53,13 +46,6 @@ bench = false
 [[bin]]
 name = "suit_fuzz_auth_stra1"
 path = "fuzz_targets/suit_fuzz_auth_stra1.rs"
-test = false
-doc = false
-bench = false
-
-[[bin]]
-name = "suit_fuzz_auth_dummyhooks"
-path = "fuzz_targets/suit_fuzz_auth_dummyhooks.rs"
 test = false
 doc = false
 bench = false
