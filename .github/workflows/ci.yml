@@ -12,14 +12,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Prek
-        run: pip install --user prek
+      - name: Install Prek (and taplo)
+        run: |
+          pip install --user prek
+          cargo install taplo-cli
 
       - name: Run pre commit hooks
         run: prek run --all-files --show-diff-on-failure --color always --hook-stage manual
 
       - name: Build project
         run: cargo build --all-targets --all-features
-      
+
       - name: Run tests
         run: cargo test --all-targets --all-features
