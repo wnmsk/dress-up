@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # fuzz_cov.sh – Run cargo‑fuzz coverage and generate HTML & text reports
-# Usage: ./fuzz_cov.sh <target> 
+# Usage: ./fuzz_cov.sh <target>
 # (execute from project root)
 # -------------------------------------------------------------
 

@@ -28,7 +28,7 @@ jobs:
 
       - name: Setup (install Rust nightly, cargo-fuzz, coverage tools)
         run: |
-          rustup update nightly 
+          rustup update nightly
           rustup default nightly
           cargo install cargo-fuzz
           rustup component add --toolchain nightly llvm-tools-preview
@@ -49,20 +49,20 @@ jobs:
       - name: Archive fuzzing corpus
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
-        with: 
+        with:
           name: ${{ steps.ts.outputs.stamp }}_${{ matrix.target }}-corpus
           path: fuzz/corpus/*
 
       - name: Archive fuzzing artifacts
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
-        with: 
+        with:
           name: ${{ steps.ts.outputs.stamp }}_${{ matrix.target }}-artifacts
           path: fuzz/artifacts/*
 
       - name: Archive code coverage reports
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
-        with: 
+        with:
           name: ${{ steps.ts.outputs.stamp }}_${{ matrix.target }}-code-coverage-reports
           path: cov_reports/*
