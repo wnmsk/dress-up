@@ -14,11 +14,11 @@ jobs:
       matrix:
         include:
           - name: "Fuzz (unauth)"
-            target: "suit_fuzz_unauth"
+            target: "raw_unauth"
           - name: "Fuzz (auth, no structure-awareness)"
-            target: "suit_fuzz_auth"
+            target: "raw_auth"
           - name: "Fuzz (auth, structure-awareness)"
-            target: "suit_fuzz_auth_stra1"
+            target: "suit_manifest_auth"
 
     name: ${{ matrix.name }}
 

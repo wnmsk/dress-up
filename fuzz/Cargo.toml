@@ -30,22 +30,22 @@ openssl = "0.10.77"
 sha2 = "0.11.0"
 
 [[bin]]
-name = "suit_fuzz_unauth"
-path = "fuzz_targets/suit_fuzz_unauth.rs"
+name = "raw_unauth"
+path = "fuzz_targets/raw_unauth.rs"
 test = false
 doc = false
 bench = false
 
 [[bin]]
-name = "suit_fuzz_auth"
-path = "fuzz_targets/suit_fuzz_auth.rs"
+name = "raw_auth"
+path = "fuzz_targets/raw_auth.rs"
 test = false
 doc = false
 bench = false
 
 [[bin]]
-name = "suit_fuzz_auth_stra1"
-path = "fuzz_targets/suit_fuzz_auth_stra1.rs"
+name = "suit_manifest_auth"
+path = "fuzz_targets/suit_manifest_auth.rs"
 test = false
 doc = false
 bench = false
