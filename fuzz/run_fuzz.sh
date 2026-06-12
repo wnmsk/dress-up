@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # run_fuzz.sh - Run already built fuzzer binary and export exit code and time‑to‑crash into a JSON file
 # Usage: ./run_fuzz.sh <fuzz_target_name> -- [cargo-fuzz / LibFuzzer arguments]
-# Example: ./run_fuzz.sh suit_fuzz_unauth -- -timeout=30 -max_total_time=3600
+# Example: ./run_fuzz.sh raw_unauth -- -timeout=30 -max_total_time=3600
 #
 # IMPORTANT: build the target BEFORE calling this script, otherwise the build process will be counted into the runtime 
 #   --> cargo fuzz build <fuzz_target_name>
@@ -13,7 +13,7 @@ set -euo pipefail
 
 if [[ $# -lt 1 ]]; then
   echo "Usage: $0 <fuzz_target_name> -- [cargo-fuzz / LibFuzzer arguments]"
-  echo "  Example: $0 suit_fuzz_unauth -- -timeout=10 -max_total_time=3600"
+  echo "  Example: $0 raw_unauth -- -timeout=10 -max_total_time=3600"
   exit 2
 fi
 

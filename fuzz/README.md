@@ -7,11 +7,11 @@ This directory contains fuzzing targets for dress-up as well as helper scripts, 
 ### Targets
 
 #### pure mutation-based:
-- `suit_fuzz_unauth`: fuzzing functions on an unauthenticated manifest
-- `suit_fuzz_auth`: fuzzing functions on an authenticated manifest
+- `raw_unauth`: fuzzing functions on an unauthenticated manifest
+- `raw_auth`: fuzzing functions on an authenticated manifest
 
 #### structure-aware:
-- `suit_fuzz_auth_stra1`: wrapping fuzzer input into syntactically valid SUIT Envelope with valid authentication block and using this input for fuzzing the authenticated manifest
+- `suit_manifest_auth`: wrapping fuzzer input into syntactically valid SUIT Envelope with valid authentication block and using this input for fuzzing the authenticated manifest
 
 ### Helper Scripts
 
@@ -76,7 +76,7 @@ Run the script (execute from project root):
 ```
 example:
 ```bash
-./fuzz/run_fuzz.sh suit_fuzz_unauth -- -timeout=30 -max_total_time=3600
+./fuzz/run_fuzz.sh raw_unauth -- -timeout=30 -max_total_time=3600
 ```
 
 The JSON with the results can then be found in `fuzz/results/metrics`.
