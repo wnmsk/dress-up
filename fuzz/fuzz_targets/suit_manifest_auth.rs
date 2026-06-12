@@ -216,9 +216,6 @@ fuzz_target!(|data: &[u8]| {
     let class_id = uuid!("019c9a96-347b-7d98-acc9-b90117f4a665");
     let vendor_id = uuid!("019c9a95-f6cb-71a7-a0a6-aac148fc4743");
 
-    // let pub_key = std::fs::read("public.pem").expect("public.pem should be available");
-    // let key = build_key(pub_key);
-
     let hooks = OsHooks::new(4096, vendor_id, class_id, payload.as_bytes());
 
     let suit = SuitManifest::from_bytes(&input);

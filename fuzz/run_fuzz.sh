@@ -3,7 +3,7 @@
 # Usage: ./run_fuzz.sh <fuzz_target_name> -- [cargo-fuzz / LibFuzzer arguments]
 # Example: ./run_fuzz.sh raw_unauth -- -timeout=30 -max_total_time=3600
 #
-# IMPORTANT: build the target BEFORE calling this script, otherwise the build process will be counted into the runtime 
+# IMPORTANT: build the target BEFORE calling this script, otherwise the build process will be counted into the runtime
 #   --> cargo fuzz build <fuzz_target_name>
 #
 # Execute from project root
