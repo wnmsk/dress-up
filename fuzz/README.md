@@ -7,16 +7,16 @@ This directory contains fuzzing targets for dress-up as well as helper scripts, 
 ### Targets
 
 #### pure mutation-based:
-- `raw_unauth`: fuzzing functions on an unauthenticated manifest
-- `raw_auth`: fuzzing functions on an authenticated manifest
+- `raw_unauth`: Tries to parse and call functions on an unauthenticated SUIT Manifest directly from arbitrary bytes.
+- `raw_auth`: Tries to parse and call functions on an authenticated SUIT Manifest directly from arbitrary bytes.
 
 #### structure-aware:
-- `suit_manifest_auth`: wrapping fuzzer input into syntactically valid SUIT Envelope with valid authentication block and using this input for fuzzing the authenticated manifest
+- `suit_manifest_auth`: Wraps arbitrary bytes into syntactically valid SUIT Envelope with valid authentication block. Tries to parse and call functions on an authenticated SUIT Manifest from this generated input.
 
 ### Helper Scripts
 
-- `run_fuzz.sh`: runs the specified target and exports exit code and time-to-crash into a JSON file (**Important**: build the target before running it with the script because otherwise the build process will be included in the measured time)
-- `fuzz_cov.sh`: generates code coverage reports (HTML and text) for specified target
+- `run_fuzz.sh`: Runs the specified target and exports exit code and time-to-crash into a JSON file. (**Important**: build the target before running it with the script because otherwise the build process will be included in the measured time)
+- `fuzz_cov.sh`: Generates code coverage reports (HTML and text) for specified target.
 
 ## Setup
 
