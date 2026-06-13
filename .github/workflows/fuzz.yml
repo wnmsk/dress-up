@@ -28,7 +28,7 @@ jobs:
 
       - name: Setup (install Rust nightly, cargo-fuzz, coverage tools)
         run: |
-          rustup update nightly 
+          rustup update nightly
           rustup default nightly
           cargo install cargo-fuzz
           rustup component add --toolchain nightly llvm-tools-preview
@@ -40,7 +40,7 @@ jobs:
           echo "stamp=$(date -u +'%Y%m%d_%H%M%S')" >> "$GITHUB_OUTPUT"
 
       - name: Build fuzz target
-        run: cargo fuzz build ${{ matrix.target }} 
+        run: cargo fuzz build ${{ matrix.target }}
 
       - name: Run fuzz target
         run: ./fuzz/run_fuzz.sh ${{ matrix.target }} -- -timeout=10 -max_total_time=3600
@@ -52,7 +52,7 @@ jobs:
       - name: Archive corpus, artifacts and results directory (metrics and cov reports)
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
-        with: 
+        with:
           name: ${{ steps.ts.outputs.stamp }}_${{ matrix.target }}-export
           path: |
             fuzz/corpus/**
