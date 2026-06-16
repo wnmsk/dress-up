@@ -1,8 +1,5 @@
-pub struct CborConsts;
-
-// TODO: split up in different enums
 /// CBOR constant definitions.
-impl CborConsts {
+pub mod cbor {
     // --- Major types (high 3 bits of initial byte) ---
     /// CBOR Major type 0 (unsigned int): 0b000_xxxxx => base 0x00
     pub const UINT_MAJOR_BASE: u8 = 0x00;
@@ -32,45 +29,53 @@ impl CborConsts {
 
     // --- bstr length header constants for n >= 24 ---
     /// Next 1 byte states length of bstr
-    pub const BSTR_LEN_U8: u8 = Self::BSTR_MAJOR_BASE + Self::AI_ONE_BYTE;
+    pub const BSTR_LEN_U8: u8 = BSTR_MAJOR_BASE + AI_ONE_BYTE;
     /// Next 2 bytes state length of bstr
-    pub const BSTR_LEN_U16: u8 = Self::BSTR_MAJOR_BASE + Self::AI_TWO_BYTES;
+    pub const BSTR_LEN_U16: u8 = BSTR_MAJOR_BASE + AI_TWO_BYTES;
     /// Next 4 bytes state length of bstr
-    pub const BSTR_LEN_U32: u8 = Self::BSTR_MAJOR_BASE + Self::AI_FOUR_BYTES;
+    pub const BSTR_LEN_U32: u8 = BSTR_MAJOR_BASE + AI_FOUR_BYTES;
     /// Next 8 bytes state length of bstr
-    pub const BSTR_LEN_U64: u8 = Self::BSTR_MAJOR_BASE + Self::AI_EIGHT_BYTES;
+    pub const BSTR_LEN_U64: u8 = BSTR_MAJOR_BASE + AI_EIGHT_BYTES;
 
     // --- convenience functions for headers ---
     /// bstr length header for n < 24
     pub const fn bstr_len_small(n: u8) -> u8 {
-        Self::BSTR_MAJOR_BASE + n
+        BSTR_MAJOR_BASE + n
     }
     /// header for array with n fields
     pub const fn array(n: u8) -> u8 {
-        Self::ARRAY_MAJOR_BASE + n
+        ARRAY_MAJOR_BASE + n
     }
     /// header for map with n entries
     pub const fn map(n: u8) -> u8 {
-        Self::MAP_MAJOR_BASE + n
+        MAP_MAJOR_BASE + n
     }
+}
 
+// COSE constant definitions.
+pub mod cose {
+    use super::cbor;
     // --- digest algorithm constants ---
     // represented by negative int => -1 - value
     /// Sha256 algorithm (-16)
-    pub const ALG_SHA_256: u8 = Self::NINT_MAJOR_BASE + 15;
+    pub const ALG_SHA_256: u8 = cbor::NINT_MAJOR_BASE + 15;
     /// Shake128 algorithm (-18)
-    pub const ALG_SHAKE_128: u8 = Self::NINT_MAJOR_BASE + 17;
+    pub const ALG_SHAKE_128: u8 = cbor::NINT_MAJOR_BASE + 17;
     /// Sha384 algorithm (-43)
-    pub const ALG_SHA_384: u8 = Self::NINT_MAJOR_BASE + 42;
+    pub const ALG_SHA_384: u8 = cbor::NINT_MAJOR_BASE + 42;
     /// Sha512 algorithm (-44)
-    pub const ALG_SHA_512: u8 = Self::NINT_MAJOR_BASE + 43;
+    pub const ALG_SHA_512: u8 = cbor::NINT_MAJOR_BASE + 43;
     /// Shake256 algorithm (-45)
-    pub const ALG_SHAKE_256: u8 = Self::NINT_MAJOR_BASE + 44;
+    pub const ALG_SHAKE_256: u8 = cbor::NINT_MAJOR_BASE + 44;
+}
 
+// SUIT Manifest constant definitions.
+pub mod suit {
+    use super::cbor;
     // --- SUIT Manifest tag ---
     /// Tag for SUIT Manifest (107)
     /// => tag major type + additional info one byte + 107 in next byte
-    pub const MANIFEST_TAG: [u8; 2] = [Self::TAG_MAJOR_BASE + Self::AI_ONE_BYTE, 107];
+    pub const MANIFEST_TAG: [u8; 2] = [cbor::TAG_MAJOR_BASE + cbor::AI_ONE_BYTE, 107];
 
     // --- Envelope field constants ---
     /// Unset detection

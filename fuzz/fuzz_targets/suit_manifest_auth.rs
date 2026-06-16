@@ -7,7 +7,7 @@ use std::cell::Cell;
 use uuid::{uuid, Uuid};
 
 use dress_up::{error::Error, OperatingHooks, SuitManifest};
-use fuzz::consts::CborConsts;
+use fuzz::consts::{cbor, cose, suit};
 
 // OsHooks copied from examples/minimal/main.rs
 struct OsHooks<'a> {
@@ -111,14 +111,14 @@ fn cbor_bstr_header(len: usize) -> Vec<u8> {
     // Major type 2 (byte string): initial byte is 0b010_aaaaa == 0x40 + additional info
     if len <= 23 {
         // additional info = len
-        vec![CborConsts::bstr_len_small(len as u8)]
+        vec![cbor::bstr_len_small(len as u8)]
     } else if len <= 0xff {
         // additional info = 24, followed by 1-byte length
-        vec![CborConsts::BSTR_LEN_U8, len as u8]
+        vec![cbor::BSTR_LEN_U8, len as u8]
     } else if len <= 0xffff {
         // additional info = 25, followed by 2-byte length (big-endian)
         vec![
-            CborConsts::BSTR_LEN_U16,
+            cbor::BSTR_LEN_U16,
             ((len >> 8) & 0xff) as u8,
             (len & 0xff) as u8,
         ]
@@ -126,7 +126,7 @@ fn cbor_bstr_header(len: usize) -> Vec<u8> {
         // additional info = 26, followed by 4-byte length (big-endian)
         let n = len as u32;
         vec![
-            CborConsts::BSTR_LEN_U32,
+            cbor::BSTR_LEN_U32,
             ((n >> 24) & 0xff) as u8,
             ((n >> 16) & 0xff) as u8,
             ((n >> 8) & 0xff) as u8,
@@ -136,7 +136,7 @@ fn cbor_bstr_header(len: usize) -> Vec<u8> {
         // additional info = 27, followed by 8-byte length (big-endian)
         let n = len as u64;
         vec![
-            CborConsts::BSTR_LEN_U64,
+            cbor::BSTR_LEN_U64,
             ((n >> 56) & 0xff) as u8,
             ((n >> 48) & 0xff) as u8,
             ((n >> 40) & 0xff) as u8,
@@ -162,19 +162,19 @@ fn gen_auth(manifest: &[u8]) -> Vec<u8> {
 
     // --- digest container ---
     let mut digest_cont: Vec<u8> = vec![];
-    digest_cont.push(CborConsts::array(2)); // Array with 2 fields
-    digest_cont.push(CborConsts::ALG_SHA_256); // digest algorithm (here Sha256) TODO: implement other hash algs
+    digest_cont.push(cbor::array(2)); // Array with 2 fields
+    digest_cont.push(cose::ALG_SHA_256); // digest algorithm (here Sha256) TODO: implement other hash algs
     digest_cont.extend(cbor_bstr_header(man_hash.len())); // length header for manifest hash
     digest_cont.extend(man_hash); // actual hash from manifest
 
     // --- auth block ---
     let mut auth_block: Vec<u8> = vec![];
-    auth_block.push(CborConsts::array(2)); // Array with 2 fields
+    auth_block.push(cbor::array(2)); // Array with 2 fields
     auth_block.extend(cbor_bstr_header(digest_cont.len())); // length of digest
     auth_block.extend(digest_cont); // digest block
 
     // --- COSE ---
-    auth_block.push(CborConsts::BSTR_MAJOR_BASE); // empty bstr (placeholder for COSE block)
+    auth_block.push(cbor::BSTR_MAJOR_BASE); // empty bstr (placeholder for COSE block)
 
     auth_block
 }
@@ -182,18 +182,18 @@ fn gen_auth(manifest: &[u8]) -> Vec<u8> {
 fn build_envelope(auth_block: &[u8], manifest: &[u8]) -> Vec<u8> {
     // --- envelope header ---
     let mut envlp: Vec<u8> = vec![];
-    envlp.extend(CborConsts::MANIFEST_TAG); // Tag for SUIT Manifest
-    envlp.push(CborConsts::map(2)); // map with 2 entries
+    envlp.extend(suit::MANIFEST_TAG); // Tag for SUIT Manifest
+    envlp.push(cbor::map(2)); // map with 2 entries
 
     // --- auth block header ---
-    envlp.push(CborConsts::ENVLP_AUTHENTICATION); // envelop key "Authentication"
+    envlp.push(suit::ENVLP_AUTHENTICATION); // envelop key "Authentication"
     envlp.extend(cbor_bstr_header(auth_block.len())); // auth block length
 
     // --- auth block ---
     envlp.extend_from_slice(auth_block);
 
     // --- manifest header ---
-    envlp.push(CborConsts::ENVLP_MANIFEST); // envelop key "Manifest"
+    envlp.push(suit::ENVLP_MANIFEST); // envelop key "Manifest"
     envlp.extend(cbor_bstr_header(manifest.len())); // manifest length
 
     // --- inner manifest ---
