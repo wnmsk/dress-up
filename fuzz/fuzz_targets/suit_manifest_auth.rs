@@ -2,12 +2,11 @@
 
 use libfuzzer_sys::fuzz_target;
 
-use sha2::{Digest, Sha256};
 use std::cell::Cell;
 use uuid::{uuid, Uuid};
 
 use dress_up::{error::Error, OperatingHooks, SuitManifest};
-use fuzz::consts::{cbor, cose, suit};
+use fuzz::envelope_builder::build_envelope;
 
 // OsHooks copied from examples/minimal/main.rs
 struct OsHooks<'a> {
@@ -107,112 +106,16 @@ impl<'a> OperatingHooks for OsHooks<'a> {
     }
 }
 
-fn cbor_bstr_header(len: usize) -> Vec<u8> {
-    // Major type 2 (byte string): initial byte is 0b010_aaaaa == 0x40 + additional info
-    if len <= 23 {
-        // additional info = len
-        vec![cbor::bstr_len_small(len as u8)]
-    } else if len <= 0xff {
-        // additional info = 24, followed by 1-byte length
-        vec![cbor::BSTR_LEN_U8, len as u8]
-    } else if len <= 0xffff {
-        // additional info = 25, followed by 2-byte length (big-endian)
-        vec![
-            cbor::BSTR_LEN_U16,
-            ((len >> 8) & 0xff) as u8,
-            (len & 0xff) as u8,
-        ]
-    } else if len <= 0xffff_ffff {
-        // additional info = 26, followed by 4-byte length (big-endian)
-        let n = len as u32;
-        vec![
-            cbor::BSTR_LEN_U32,
-            ((n >> 24) & 0xff) as u8,
-            ((n >> 16) & 0xff) as u8,
-            ((n >> 8) & 0xff) as u8,
-            (n & 0xff) as u8,
-        ]
-    } else if (len as u128) <= 0xffff_ffff_ffff_ffffu128 {
-        // additional info = 27, followed by 8-byte length (big-endian)
-        let n = len as u64;
-        vec![
-            cbor::BSTR_LEN_U64,
-            ((n >> 56) & 0xff) as u8,
-            ((n >> 48) & 0xff) as u8,
-            ((n >> 40) & 0xff) as u8,
-            ((n >> 32) & 0xff) as u8,
-            ((n >> 24) & 0xff) as u8,
-            ((n >> 16) & 0xff) as u8,
-            ((n >> 8) & 0xff) as u8,
-            (n & 0xff) as u8,
-        ]
-    } else {
-        panic!("byte string too large for CBOR definite-length encoding");
-    }
-}
-
-fn gen_auth(manifest: &[u8]) -> Vec<u8> {
-    // --- manifest hash ---
-    let mut man: Vec<u8> = vec![];
-    man.extend(cbor_bstr_header(manifest.len())); // add length header of manifest
-    man.extend(manifest); // manifest itself
-
-    // hash the manifest TODO: implement oher hash algs
-    let man_hash = Sha256::digest(man);
-
-    // --- digest container ---
-    let mut digest_cont: Vec<u8> = vec![];
-    digest_cont.push(cbor::array(2)); // Array with 2 fields
-    digest_cont.push(cose::ALG_SHA_256); // digest algorithm (here Sha256) TODO: implement other hash algs
-    digest_cont.extend(cbor_bstr_header(man_hash.len())); // length header for manifest hash
-    digest_cont.extend(man_hash); // actual hash from manifest
-
-    // --- auth block ---
-    let mut auth_block: Vec<u8> = vec![];
-    auth_block.push(cbor::array(2)); // Array with 2 fields
-    auth_block.extend(cbor_bstr_header(digest_cont.len())); // length of digest
-    auth_block.extend(digest_cont); // digest block
-
-    // --- COSE ---
-    auth_block.push(cbor::BSTR_MAJOR_BASE); // empty bstr (placeholder for COSE block)
-
-    auth_block
-}
-
-fn build_envelope(auth_block: &[u8], manifest: &[u8]) -> Vec<u8> {
-    // --- envelope header ---
-    let mut envlp: Vec<u8> = vec![];
-    envlp.extend(suit::MANIFEST_TAG); // Tag for SUIT Manifest
-    envlp.push(cbor::map(2)); // map with 2 entries
-
-    // --- auth block header ---
-    envlp.push(suit::ENVLP_AUTHENTICATION); // envelop key "Authentication"
-    envlp.extend(cbor_bstr_header(auth_block.len())); // auth block length
-
-    // --- auth block ---
-    envlp.extend_from_slice(auth_block);
-
-    // --- manifest header ---
-    envlp.push(suit::ENVLP_MANIFEST); // envelop key "Manifest"
-    envlp.extend(cbor_bstr_header(manifest.len())); // manifest length
-
-    // --- inner manifest ---
-    envlp.extend_from_slice(manifest);
-
-    envlp
-}
-
 fuzz_target!(|data: &[u8]| {
     let selector = data.first().copied().unwrap_or(0);
     let manifest = data.get(1..).unwrap_or(data);
     let payload = "hello world!";
 
-    // minimal structure-awareness by appending "valid" auth block at beginning of input
-    let auth_block = gen_auth(manifest);
-    let input = build_envelope(&auth_block, manifest);
+    // certain structure-awareness by wrapping inner manifest in valid SUIT envelope with valid auth block
+    let input = build_envelope(manifest);
 
     // class_id and vendor_id taken from minimal example
-    // TODO: check if this makes any difference
+    // TODO: check if this also needs to be fuzzed
     let class_id = uuid!("019c9a96-347b-7d98-acc9-b90117f4a665");
     let vendor_id = uuid!("019c9a95-f6cb-71a7-a0a6-aac148fc4743");
 
