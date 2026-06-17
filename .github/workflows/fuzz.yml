@@ -2,6 +2,9 @@ name: Fuzz
 on:
   push:
   pull_request:
+  schedule:
+    # Weekly on Sundays at 00:01 UTC
+    - cron: "1 0 * * 0"
 
 env:
   CARGO_TERM_COLOR: always
@@ -43,7 +46,13 @@ jobs:
         run: cargo fuzz build ${{ matrix.target }}
 
       - name: Run fuzz target
-        run: ./fuzz/run_fuzz.sh ${{ matrix.target }} -- -timeout=10 -max_total_time=3600
+        # 1h on push/PR, 24h on weekly schedule
+        run: |
+          MAX_TIME=3600
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            MAX_TIME=86400
+          fi
+          ./fuzz/run_fuzz.sh ${{ matrix.target }} -- -timeout=10 -max_total_time=$MAX_TIME
 
       - name: Create code coverage reports
         if: ${{ always() }}
