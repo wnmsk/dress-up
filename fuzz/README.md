@@ -5,8 +5,10 @@ This directory contains fuzzing targets for dress-up as well as helper scripts, 
 ## Contents
 
 ### Targets
+located in `fuzz_targets/`
 
 #### pure mutation-based:
+
 - `raw_unauth`: Tries to parse and call functions on an unauthenticated SUIT Manifest directly from arbitrary bytes.
 - `raw_auth`: Tries to parse and call functions on an authenticated SUIT Manifest directly from arbitrary bytes.
 
@@ -14,9 +16,11 @@ This directory contains fuzzing targets for dress-up as well as helper scripts, 
 - `suit_manifest_auth`: Wraps arbitrary bytes into syntactically valid SUIT Envelope with valid authentication block. Tries to parse and call functions on an authenticated SUIT Manifest from this generated input.
 
 ### Helper Scripts
+located in `scripts/`
 
 - `run_fuzz.sh`: Runs the specified target and exports exit code and time-to-crash into a JSON file. (**Important**: build the target before running it with the script because otherwise the build process will be included in the measured time)
 - `fuzz_cov.sh`: Generates code coverage reports (HTML and text) for specified target.
+- `run_tests.sh`: Builds and runs all targets specified for the specified time and generates reports.
 
 ## Setup
 
@@ -79,7 +83,7 @@ example:
 ./fuzz/scripts/run_fuzz.sh raw_unauth -- -timeout=30 -max_total_time=3600
 ```
 
-The JSON with the results can then be found in `fuzz/results/metrics`.
+The JSON with the results can then be found in `fuzz/results/metrics/`.
 
 ### Generate coverage reports
 
@@ -90,4 +94,18 @@ Run the script (execute from project root):
 ./fuzz/scripts/fuzz_cov.sh <target_name>
 ```
 
-The coverage reports can then be found in `fuzz/results/cov_reports`.
+The coverage reports can then be found in `fuzz/results/cov_reports/`.
+
+### Run tests locally
+
+The script `run_tests.sh` will run all targets (or a specific list of targets) locally for a specified amount of time and generate the corresponding results / reports.
+
+Run the script (execute from project root):
+```bash
+./fuzz/scripts/run_tests.sh <runtime> [TARGET ...]
+```
+
+- `<runtime>`: Amount of seconds for each target to run.
+- `[TARGET ...]`: Optional list of targets that will be tested (if none provided, the script will test all available targets).
+
+All results (including artifacts, corpora, coverage reports, metrics and the output from the targets) can be found in `fuzz/results/`.
