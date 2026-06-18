@@ -24,8 +24,8 @@ PREPOP_TARGETS=(
 )
 
 TARGET="$1"
-METRICS_DIR="fuzz/results/metrics/$(date +%Y-%m-%d_%H%M%S)"
-OUTFILE="${METRICS_DIR}/${TARGET}_time_to_exit.json"
+METRICS_DIR="fuzz/results/metrics/$(date +%Y-%m-%d)"
+OUTFILE="${METRICS_DIR}/$(date +%Y-%m-%d_%H%M%S)_${TARGET}_time_to_exit.json"
 shift || true
 
 # Prepopulate corpus if needed for target

@@ -14,7 +14,7 @@ if [[ $# -ne 1 ]]; then
 fi
 
 TARGET="$1"
-REPORT_DIR="fuzz/results/cov_reports/$(date +%Y-%m-%d_%H%M%S)"
+REPORT_DIR="fuzz/results/cov_reports/$(date +%Y-%m-%d)"
 
 # use direct binary path since 'cargo cov' doesn't seem to work on the VM
 # --> https://github.com/rust-fuzz/cargo-fuzz/issues/308
@@ -28,7 +28,7 @@ echo "Running cargo fuzz coverage for target \"${TARGET}\" ..."
 cargo fuzz coverage "${TARGET}"
 
 # generate HTML cov report
-HTML_OUT="${REPORT_DIR}/cov_${TARGET}.html"
+HTML_OUT="${REPORT_DIR}/$(date +%Y-%m-%d_%H%M%S)_cov_${TARGET}.html"
 COV_DIR="fuzz/coverage/${TARGET}"
 COV_PROFILE="${COV_DIR}/coverage.profdata"
 BIN_PATH="target/x86_64-unknown-linux-gnu/coverage/x86_64-unknown-linux-gnu/release/${TARGET}"
@@ -44,7 +44,7 @@ echo "Creating HTML coverage report → ${HTML_OUT} ..."
     > "${HTML_OUT}"
 
 # generate textual cov report
-TXT_OUT="${REPORT_DIR}/cov_${TARGET}.txt"
+TXT_OUT="${REPORT_DIR}/$(date +%Y-%m-%d_%H%M%S)_cov_${TARGET}.txt"
 
 echo "Creating textual coverage report → ${TXT_OUT} ..."
 # ignoring code in .cargo and .rustup to leave out dependency code
