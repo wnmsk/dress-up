@@ -72,11 +72,11 @@ cargo fuzz build <target_name>
 
 Run the script (execute from project root):
 ```bash
-./fuzz/run_fuzz.sh <target_name> -- [libFuzzer_arguments]
+./fuzz/scripts/run_fuzz.sh <target_name> -- [libFuzzer_arguments]
 ```
 example:
 ```bash
-./fuzz/run_fuzz.sh raw_unauth -- -timeout=30 -max_total_time=3600
+./fuzz/scripts/run_fuzz.sh raw_unauth -- -timeout=30 -max_total_time=3600
 ```
 
 The JSON with the results can then be found in `fuzz/results/metrics`.
@@ -87,7 +87,7 @@ For an overview, how much of the projects code was covered by the specific targe
 
 Run the script (execute from project root):
 ```bash
-./fuzz/fuzz_cov.sh <target_name>
+./fuzz/scripts/fuzz_cov.sh <target_name>
 ```
 
 The coverage reports can then be found in `fuzz/results/cov_reports`.

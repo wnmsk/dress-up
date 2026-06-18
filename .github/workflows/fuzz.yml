@@ -52,11 +52,11 @@ jobs:
           if [ "${{ github.event_name }}" = "schedule" ]; then
             MAX_TIME=86400
           fi
-          ./fuzz/run_fuzz.sh ${{ matrix.target }} -- -timeout=10 -max_total_time=$MAX_TIME
+          ./fuzz/scripts/run_fuzz.sh ${{ matrix.target }} -- -timeout=10 -max_total_time=$MAX_TIME
 
       - name: Create code coverage reports
         if: ${{ always() }}
-        run: ./fuzz/fuzz_cov.sh ${{ matrix.target }}
+        run: ./fuzz/scripts/fuzz_cov.sh ${{ matrix.target }}
 
       - name: Archive corpus, artifacts and results directory (metrics and cov reports)
         if: ${{ always() }}
