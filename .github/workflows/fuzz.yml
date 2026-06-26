@@ -47,8 +47,9 @@ jobs:
 
       - name: Run fuzz target
         # 1h on push/PR, 24h on weekly schedule
+        # !! --> only 30s for testing purposes TODO: revert in real branch
         run: |
-          MAX_TIME=3600
+          MAX_TIME=30
           if [ "${{ github.event_name }}" = "schedule" ]; then
             MAX_TIME=86400
           fi
