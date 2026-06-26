@@ -107,7 +107,7 @@ impl<'a> OperatingHooks for OsHooks<'a> {
 }
 
 fuzz_target!(|data: &[u8]| {
-    let selector = data.get(0).copied().unwrap_or(0);
+    let selector = data.first().copied().unwrap_or(0);
     let manifest = data.get(1..).unwrap_or(data);
     let payload = "hello world!";
 
