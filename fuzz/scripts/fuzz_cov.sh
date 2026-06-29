@@ -60,7 +60,7 @@ echo "Creating textual coverage report → ${TXT_OUT} ..."
 "${LLVM_COV_BIN}" \
     report "${BIN_PATH}" \
     -instr-profile="${COV_PROFILE}" \
-    -ignore-filename-regex='/.cargo/|/.rustup/|/fuzz/' \
+    -ignore-filename-regex='/.cargo/|/.rustup/|/fuzz/|/rustc/' \
     > "${TXT_OUT}"
 
 echo "All done."
