@@ -18,7 +18,8 @@ REPORT_DIR="fuzz/results/cov_reports/$(date +%Y-%m-%d)"
 
 # use direct binary path since 'cargo cov' doesn't seem to work on the VM
 # --> https://github.com/rust-fuzz/cargo-fuzz/issues/308
-LLVM_COV_BIN="${HOME}/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/x86_64-unknown-linux-gnu/bin/llvm-cov"
+# LLVM_COV_BIN="${HOME}/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/x86_64-unknown-linux-gnu/bin/llvm-cov"
+LLVM_COV_BIN="$(rustup which llvm-cov)" # trying to get the correct binary
 
 # create report directory
 mkdir -p "${REPORT_DIR}";
