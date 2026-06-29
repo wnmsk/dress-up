@@ -8,6 +8,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  NIGHTLY_TOOLCHAIN: nightly-2026-06-01
 
 jobs:
   fuzz:
@@ -31,10 +32,10 @@ jobs:
 
       - name: Setup (install Rust nightly, cargo-fuzz, coverage tools)
         run: |
-          rustup update nightly
-          rustup default nightly
+          rustup toolchain install "$NIGHTLY_TOOLCHAIN"
+          rustup default "$NIGHTLY_TOOLCHAIN"
           cargo install cargo-fuzz
-          rustup component add --toolchain nightly llvm-tools-preview
+          rustup component add --toolchain "$NIGHTLY_TOOLCHAIN" llvm-tools-preview
 
       - name: Compute timestamp (for naming archives)
         id: ts

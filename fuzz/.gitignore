@@ -1,5 +1,7 @@
+.env
 target
 corpus
+corpus_bkp
 artifacts
 coverage
 .vscode
