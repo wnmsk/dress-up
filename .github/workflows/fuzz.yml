@@ -31,7 +31,7 @@ jobs:
 
       - name: Setup (install Rust nightly, cargo-fuzz, coverage tools)
         run: |
-          rustup toolchain install nightly-2026-06-01 --profile minimal --component llvm-tools-preview
+          rustup toolchain install nightly-2026-06-01 --component llvm-tools-preview
           rustup default nightly-2026-06-01
           cargo install cargo-fuzz
 
