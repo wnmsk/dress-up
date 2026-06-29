@@ -31,9 +31,10 @@ jobs:
 
       - name: Setup (install Rust nightly, cargo-fuzz, coverage tools)
         run: |
-          rustup toolchain install nightly-2026-06-01 --component llvm-tools-preview
+          rustup toolchain install nightly-2026-06-01
           rustup default nightly-2026-06-01
           cargo install cargo-fuzz
+          rustup component add --toolchain nightly-2026-06-01 llvm-tools-preview
 
       - name: Compute timestamp (for naming archives)
         id: ts
