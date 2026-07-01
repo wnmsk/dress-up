@@ -17,10 +17,15 @@ if [[ $# -lt 1 ]]; then
   exit 2
 fi
 
-# Targets that need prepopulated corpora
-PREPOP_TARGETS=(
+# Targets that need prepopulated corpora with complete manifest
+PREPOP_COMPLETE=(
   raw_auth
   raw_unauth
+)
+
+# Targets that need prepopulated corpora with inner manifest
+PREPOP_INNER=(
+  suit_manifest_auth
 )
 
 TARGET="$1"
@@ -28,11 +33,19 @@ METRICS_DIR="fuzz/results/metrics/$(date +%Y-%m-%d)"
 OUTFILE="${METRICS_DIR}/$(date +%Y-%m-%d_%H%M%S)_${TARGET}_time_to_exit.json"
 shift || true
 
-# Prepopulate corpus if needed for target
-for pre in "${PREPOP_TARGETS[@]}"; do
+# use prepop corpus for target needing complete manifest
+for pre in "${PREPOP_COMPLETE[@]}"; do
   if [[ "${TARGET}" == "${pre}" ]]; then
     mkdir -p "fuzz/corpus/${TARGET}"
-    cp -r fuzz/corpus_prepop/* fuzz/corpus/${TARGET}
+    cp -r fuzz/corpus_complete_manifest/* fuzz/corpus/${TARGET}
+  fi
+done
+
+# use prepop corpus for target needing inner manifest
+for pre in "${PREPOP_INNER[@]}"; do
+  if [[ "${TARGET}" == "${pre}" ]]; then
+    mkdir -p "fuzz/corpus/${TARGET}"
+    cp -r fuzz/corpus_inner_manifest/* fuzz/corpus/${TARGET}
   fi
 done
 

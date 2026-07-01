@@ -18,6 +18,8 @@ if [[ $# -lt 1 ]]; then
   exit 1
 fi
 
+TEST_ARGS="-seed=0 -max_len=4096 -timeout=5 -rss_limit_mb=4096 -print_final_stats=1"
+
 RUNTIME="$1"
 shift || true
 
@@ -31,15 +33,13 @@ ARTIFACTS_RESULTS_DIR="fuzz/results/artifacts/${DATE}"
 
 mkdir -p "${LOG_DIR}" "${CORPUS_RESULTS_DIR}" "${ARTIFACTS_RESULTS_DIR}"
 
-# Backup existing corpus/artifacts at beginning
+# # Backup existing corpus/artifacts at beginning
 if [[ -d "fuzz/corpus" ]]; then
-  rm -rf "fuzz/corpus_bkp"
-  mv "fuzz/corpus" "fuzz/corpus_bkp"
+  mv "fuzz/corpus" "fuzz/corpus_bkp_${DATE_TIME}"
 fi
 
 if [[ -d "fuzz/artifacts" ]]; then
-  rm -rf "fuzz/artifacts_bkp"
-  mv "fuzz/artifacts" "fuzz/artifacts_bkp"
+  mv "fuzz/artifacts" "fuzz/artifacts_bkp_${DATE_TIME}"
 fi
 
 # Build target list
@@ -57,16 +57,19 @@ for target in "${TARGETS[@]}"; do
   cargo fuzz build "${target}"
 
   LOG_FILE="${LOG_DIR}/testrun_${DATE_TIME}_${target}.txt"
+  COMMAND="./fuzz/scripts/run_fuzz.sh ${target} -- ${TEST_ARGS} -max_total_time=${RUNTIME}"
 
   {
     echo "runtime=${RUNTIME}"
     echo "target=${target}"
     echo "date_time=${DATE_TIME}"
-    echo "command=./fuzz/scripts/run_fuzz.sh ${target} -- -timeout=10 -max_total_time=${RUNTIME}"
+    echo "command=./fuzz/scripts/run_fuzz.sh ${target} -- ${TEST_ARGS} -max_total_time=${RUNTIME}"
     echo "----------------------------------------"
   } | tee "${LOG_FILE}" >/dev/null
 
-  ./fuzz/scripts/run_fuzz.sh "${target}" -- -timeout=10 -max_total_time="${RUNTIME}" 2>&1 | tee -a "${LOG_FILE}"
+  set +e
+  ./fuzz/scripts/run_fuzz.sh "${target}" -- "${TEST_ARGS}" -max_total_time="${RUNTIME}" 2>&1 | ts '%s' | tee -a "${LOG_FILE}"
+  set -e
 
   ./fuzz/scripts/fuzz_cov.sh "${target}"
 done
