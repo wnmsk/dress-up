@@ -127,7 +127,10 @@ impl<'a> ManifestState<'a> {
                 SuitParameter::ComponentSlot => self.component_slot_from_cbor(decoder)?,
                 SuitParameter::ImageSize => self.image_size_from_cbor(decoder)?,
                 SuitParameter::Uri => self.uri_from_cbor(decoder)?,
-                SuitParameter::SourceComponent => todo!(),
+                // SuitParameter::SourceComponent => todo!(),
+                SuitParameter::SourceComponent => {
+                    return Err(Error::Unimplemented {});
+                }
                 SuitParameter::DeviceId => self.device_id_from_cbor(decoder)?,
                 SuitParameter::Content => self.content_from_cbor(decoder)?,
                 param => {

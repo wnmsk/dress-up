@@ -95,6 +95,8 @@ pub enum Error {
         /// Position of the UTF-8 decoding error in the manifest.
         position: usize,
     },
+    /// This part of the code is not yet implemented (substitutes `todo!()`-macro)
+    Unimplemented {},
 }
 
 impl Error {
@@ -176,6 +178,9 @@ impl core::fmt::Display for Error {
             }
             Self::Utf8Error { position } => {
                 write!(f, "unable to interpret bytes as string at {position}")
+            }
+            Self::Unimplemented {} => {
+                write!(f, "this part of the code is not yet implemented")
             }
         }
     }

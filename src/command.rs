@@ -351,7 +351,10 @@ impl<'a, O: OperatingHooks> CommandSequenceExecutor<'a, O> {
             SuitCommand::WriteContent => {
                 self.directive_write(state, component)?;
             }
-            SuitCommand::Custom(_n) => todo!(),
+            // SuitCommand::Custom(_n) => todo!(),
+            SuitCommand::Custom(_n) => {
+                return Err(Error::Unimplemented {});
+            }
         }
         Ok(())
     }
