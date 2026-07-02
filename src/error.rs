@@ -96,7 +96,7 @@ pub enum Error {
         position: usize,
     },
     /// This part of the code is not yet implemented (substitutes `todo!()`-macro)
-    Unimplemented {},
+    Unimplemented,
 }
 
 impl Error {
@@ -179,7 +179,7 @@ impl core::fmt::Display for Error {
             Self::Utf8Error { position } => {
                 write!(f, "unable to interpret bytes as string at {position}")
             }
-            Self::Unimplemented {} => {
+            Self::Unimplemented => {
                 write!(f, "this part of the code is not yet implemented")
             }
         }

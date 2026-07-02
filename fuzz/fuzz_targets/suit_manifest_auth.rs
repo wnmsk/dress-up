@@ -72,7 +72,8 @@ impl<'a> OperatingHooks for OsHooks<'a> {
         _offset: usize,
         _bytes: &[u8],
     ) -> Result<(), dress_up::error::Error> {
-        todo!()
+        // todo!()
+        return Err(dress_up::error::Error::Unimplemented)
     }
 
     fn component_size(

@@ -353,7 +353,7 @@ impl<'a, O: OperatingHooks> CommandSequenceExecutor<'a, O> {
             }
             // SuitCommand::Custom(_n) => todo!(),
             SuitCommand::Custom(_n) => {
-                return Err(Error::Unimplemented {});
+                return Err(Error::Unimplemented);
             }
         }
         Ok(())
