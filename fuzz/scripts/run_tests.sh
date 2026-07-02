@@ -18,7 +18,7 @@ if [[ $# -lt 1 ]]; then
   exit 1
 fi
 
-TEST_ARGS="-seed=0 -max_len=4096 -timeout=5 -rss_limit_mb=4096 -print_final_stats=1"
+TEST_ARGS="-seed=0 -max_len=8192 -timeout=5 -rss_limit_mb=4096 -print_final_stats=1"
 
 RUNTIME="$1"
 shift || true
