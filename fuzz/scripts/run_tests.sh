@@ -27,11 +27,15 @@ shift || true
 DATE="$(date +%F)"              # YYYY-MM-DD
 DATE_TIME="$(date +%F_%H-%M-%S)" # safe for filenames
 
+# TODO: change dir structure
 LOG_DIR="fuzz/results/test_logs/${DATE}"
 CORPUS_RESULTS_DIR="fuzz/results/corpus/${DATE}"
 ARTIFACTS_RESULTS_DIR="fuzz/results/artifacts/${DATE}"
+CSV_DIR="fuzz/results/csv/${DATE}"
+PLOT_DIR="fuzz/results/plots/${DATE}"
+SUM_DIR="fuzz/results/run_summary/${DATE}"
 
-mkdir -p "${LOG_DIR}" "${CORPUS_RESULTS_DIR}" "${ARTIFACTS_RESULTS_DIR}"
+mkdir -p "${LOG_DIR}" "${CORPUS_RESULTS_DIR}" "${ARTIFACTS_RESULTS_DIR}" "${CSV_DIR}" "${PLOT_DIR}" "${SUM_DIR}"
 
 # # Backup existing corpus/artifacts at beginning
 if [[ -d "fuzz/corpus" ]]; then
@@ -57,7 +61,7 @@ for target in "${TARGETS[@]}"; do
   cargo fuzz build "${target}"
 
   LOG_FILE="${LOG_DIR}/testrun_${DATE_TIME}_${target}.txt"
-  COMMAND="./fuzz/scripts/run_fuzz.sh ${target} -- ${TEST_ARGS} -max_total_time=${RUNTIME}"
+  CSV_FILE="${CSV_DIR}/testrun_${DATE_TIME}_${target}.csv"
 
   {
     echo "runtime=${RUNTIME}"
@@ -72,6 +76,22 @@ for target in "${TARGETS[@]}"; do
   set -e
 
   ./fuzz/scripts/fuzz_cov.sh "${target}"
+
+  # python scripts to parse and plot run
+  # IMPORTANT: matplotlib must be installed in Python for this to work
+
+  # summarize run and save csv for plot
+  python3 fuzz/tools/metrics_parser.py "${LOG_FILE}" --csv "${CSV_FILE}" 2>&1 | tee -a "${SUM_DIR}"/testrun_"${DATE_TIME}"_"${target}"_summary.txt
+
+  # plot full run, first 10 min and first 30 min
+  python3 fuzz/tools/metrics_plotter.py "${CSV_FILE}" --output "${PLOT_DIR}"/testrun_"${DATE_TIME}"_"${target}".png
+  if [[ "${RUNTIME}" -gt 600 ]]; then
+    python3 fuzz/tools/metrics_plotter.py "${CSV_FILE}" --end-time 10m --output "${PLOT_DIR}"/testrun_"${DATE_TIME}"_"${target}"_first_10m.png
+  fi
+  if [[ "${RUNTIME}" -gt 1800 ]]; then
+    python3 fuzz/tools/metrics_plotter.py "${CSV_FILE}" --end-time 30m --output "${PLOT_DIR}"/testrun_"${DATE_TIME}"_"${target}"_first_30m.png
+  fi
+
 done
 
 # Move resulting corpus/artifacts to results at end
