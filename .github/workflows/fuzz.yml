@@ -30,12 +30,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup (install Rust nightly, cargo-fuzz, coverage tools)
+      - name: Setup (install Rust nightly, cargo-fuzz, coverage tools, matplotlib)
         run: |
           rustup toolchain install "$NIGHTLY_TOOLCHAIN"
           rustup default "$NIGHTLY_TOOLCHAIN"
           cargo install cargo-fuzz
           rustup component add --toolchain "$NIGHTLY_TOOLCHAIN" llvm-tools-preview
+          pip install matplotlib
 
       - name: Compute timestamp (for naming archives)
         id: ts
@@ -46,18 +47,14 @@ jobs:
       - name: Build fuzz target
         run: cargo fuzz build ${{ matrix.target }}
 
-      - name: Run fuzz target
+      - name: Run fuzz tests
         # 1h on push/PR, 24h on weekly schedule
         run: |
           MAX_TIME=3600
           if [ "${{ github.event_name }}" = "schedule" ]; then
             MAX_TIME=86400
           fi
-          ./fuzz/scripts/run_fuzz.sh ${{ matrix.target }} -- -seed=0 -max_len=4096 -timeout=5 -rss_limit_mb=4096 -print_final_stats=1 -max_total_time=$MAX_TIME
-
-      - name: Create code coverage reports
-        if: ${{ always() }}
-        run: ./fuzz/scripts/fuzz_cov.sh ${{ matrix.target }}
+          ./fuzz/scripts/run_tests.sh $MAX_TIME ${{ matrix.target }}
 
       - name: Archive corpus, artifacts and results directory (metrics and cov reports)
         if: ${{ always() }}
@@ -65,6 +62,4 @@ jobs:
         with:
           name: ${{ steps.ts.outputs.stamp }}_${{ matrix.target }}-export
           path: |
-            fuzz/corpus/**
-            fuzz/artifacts/**
             fuzz/results/**
