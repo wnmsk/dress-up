@@ -7,15 +7,11 @@
 
 set -euo pipefail
 
-usage() {
+if [[ $# -lt 1 ]]; then
   echo "Usage: $0 RUNTIME [TARGET ...]"
   echo "  RUNTIME: value passed to -max_total_time (e.g. 60, 300)"
   echo "  TARGET:  optional list of cargo-fuzz targets; if omitted uses: cargo fuzz list"
-}
-
-if [[ $# -lt 1 ]]; then
-  usage
-  exit 1
+  exit 2
 fi
 
 TEST_ARGS="-seed=0 -max_len=8192 -timeout=5 -rss_limit_mb=4096 -print_final_stats=1"
@@ -27,15 +23,17 @@ shift || true
 DATE="$(date +%F)"              # YYYY-MM-DD
 DATE_TIME="$(date +%F_%H-%M-%S)" # safe for filenames
 
-# TODO: change dir structure
-LOG_DIR="fuzz/results/test_logs/${DATE}"
-CORPUS_RESULTS_DIR="fuzz/results/corpus/${DATE}"
-ARTIFACTS_RESULTS_DIR="fuzz/results/artifacts/${DATE}"
-CSV_DIR="fuzz/results/csv/${DATE}"
-PLOT_DIR="fuzz/results/plots/${DATE}"
-SUM_DIR="fuzz/results/run_summary/${DATE}"
+RESULTS_DIR="fuzz/results/${DATE}"
+LOG_DIR="${RESULTS_DIR}/test_logs"
+CORPUS_RESULTS_DIR="${RESULTS_DIR}/corpus"
+ARTIFACTS_RESULTS_DIR="${RESULTS_DIR}/artifacts"
+CSV_DIR="${RESULTS_DIR}/csv"
+PLOT_DIR="${RESULTS_DIR}/plots"
+SUM_DIR="${RESULTS_DIR}/run_summary"
+COV_DIR="${RESULTS_DIR}/cov_reports"
+METRICS_DIR="${RESULTS_DIR}/metrics"
 
-mkdir -p "${LOG_DIR}" "${CORPUS_RESULTS_DIR}" "${ARTIFACTS_RESULTS_DIR}" "${CSV_DIR}" "${PLOT_DIR}" "${SUM_DIR}"
+mkdir -p "${LOG_DIR}" "${CORPUS_RESULTS_DIR}" "${ARTIFACTS_RESULTS_DIR}" "${CSV_DIR}" "${PLOT_DIR}" "${SUM_DIR}" "${COV_DIR}" "${METRICS_DIR}"
 
 # # Backup existing corpus/artifacts at beginning
 if [[ -d "fuzz/corpus" ]]; then
@@ -60,6 +58,9 @@ for target in "${TARGETS[@]}"; do
   echo "Running target: ${target}"
   cargo fuzz build "${target}"
 
+  METRICS_OUTFILE="${METRICS_DIR}/${DATE_TIME}_${target}_time_to_exit.json"
+  COV_REP_NAME="${DATE_TIME}_${target}_cov"
+
   LOG_FILE="${LOG_DIR}/testrun_${DATE_TIME}_${target}.txt"
   CSV_FILE="${CSV_DIR}/testrun_${DATE_TIME}_${target}.csv"
 
@@ -67,15 +68,15 @@ for target in "${TARGETS[@]}"; do
     echo "runtime=${RUNTIME}"
     echo "target=${target}"
     echo "date_time=${DATE_TIME}"
-    echo "command=./fuzz/scripts/run_fuzz.sh ${target} -- ${TEST_ARGS} -max_total_time=${RUNTIME}"
+    echo "command=./fuzz/scripts/run_fuzz.sh ${target} ${METRICS_OUTFILE} -- ${TEST_ARGS} -max_total_time=${RUNTIME}"
     echo "----------------------------------------"
   } | tee "${LOG_FILE}" >/dev/null
 
   set +e
-  ./fuzz/scripts/run_fuzz.sh "${target}" -- "${TEST_ARGS}" -max_total_time="${RUNTIME}" 2>&1 | ts '%s' | tee -a "${LOG_FILE}"
+  ./fuzz/scripts/run_fuzz.sh "${target}" "${METRICS_OUTFILE}" -- "${TEST_ARGS}" -max_total_time="${RUNTIME}" 2>&1 | ts '%s' | tee -a "${LOG_FILE}"
   set -e
 
-  ./fuzz/scripts/fuzz_cov.sh "${target}"
+  ./fuzz/scripts/fuzz_cov.sh "${target}" "${COV_DIR}" "${COV_REP_NAME}"
 
   # python scripts to parse and plot run
   # IMPORTANT: matplotlib must be installed in Python for this to work

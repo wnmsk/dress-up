@@ -4,16 +4,16 @@
 # Example: ./run_fuzz.sh raw_unauth -- -timeout=30 -max_total_time=3600
 #
 # IMPORTANT: build the target BEFORE calling this script, otherwise the build process will be counted into the runtime
-#   --> cargo fuzz build <fuzz_target_name>
+#   --> cargo fuzz build <fuzz_target_name> <metrics_outfile>
 #
 # Execute from project root
 # -------------------------------------------------------------
 
 set -euo pipefail
 
-if [[ $# -lt 1 ]]; then
-  echo "Usage: $0 <fuzz_target_name> -- [cargo-fuzz / LibFuzzer arguments]"
-  echo "  Example: $0 raw_unauth -- -timeout=10 -max_total_time=3600"
+if [[ $# -lt 2 ]]; then
+  echo "Usage: $0 <fuzz_target_name> <metrics_outfile> -- [cargo-fuzz / LibFuzzer arguments]"
+  echo "  Example: $0 raw_unauth results/metrics/time_to_exit.json -- -timeout=10 -max_total_time=3600"
   exit 2
 fi
 
@@ -29,9 +29,8 @@ PREPOP_INNER=(
 )
 
 TARGET="$1"
-METRICS_DIR="fuzz/results/metrics/$(date +%Y-%m-%d)"
-OUTFILE="${METRICS_DIR}/$(date +%Y-%m-%d_%H%M%S)_${TARGET}_time_to_exit.json"
-shift || true
+OUTFILE="$2"
+shift 2 || true
 
 # use prepop corpus for target needing complete manifest
 for pre in "${PREPOP_COMPLETE[@]}"; do
@@ -56,8 +55,6 @@ if [[ "${1:-}" == "--" ]]; then
   LIBFUZZER_ARGS=("$@")
 fi
 echo "${LIBFUZZER_ARGS}"
-
-mkdir -p "${METRICS_DIR}"
 
 # Measure runtime for time-to-crash comparison
 START_NS=$(date +%s%N)
