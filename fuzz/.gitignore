@@ -3,6 +3,7 @@ target
 corpus
 corpus_bkp*
 artifacts
+artifacts_bkp*
 coverage
 .vscode
 debug_test
