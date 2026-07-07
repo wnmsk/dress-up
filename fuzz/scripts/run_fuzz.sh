@@ -54,11 +54,12 @@ if [[ "${1:-}" == "--" ]]; then
   shift
   LIBFUZZER_ARGS=("$@")
 fi
-echo "${LIBFUZZER_ARGS}"
+printf '<%s>\n' "${LIBFUZZER_ARGS[@]}"
 
 # Measure runtime for time-to-crash comparison
 START_NS=$(date +%s%N)
 set +e
+echo "running command: cargo fuzz run ${TARGET} -- ${LIBFUZZER_ARGS[@]}"
 cargo fuzz run "${TARGET}" -- "${LIBFUZZER_ARGS[@]}"
 RC=$?
 set -e

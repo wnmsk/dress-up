@@ -14,7 +14,13 @@ if [[ $# -lt 1 ]]; then
   exit 2
 fi
 
-TEST_ARGS="-seed=0 -max_len=8192 -timeout=5 -rss_limit_mb=4096 -print_final_stats=1"
+TEST_ARGS=(
+  -seed=0
+  -max_len=8192
+  -timeout=5
+  -rss_limit_mb=4096
+  -print_final_stats=1
+)
 
 RUNTIME="$1"
 shift || true
@@ -68,12 +74,12 @@ for target in "${TARGETS[@]}"; do
     echo "runtime=${RUNTIME}"
     echo "target=${target}"
     echo "date_time=${DATE_TIME}"
-    echo "command=./fuzz/scripts/run_fuzz.sh ${target} ${METRICS_OUTFILE} -- ${TEST_ARGS} -max_total_time=${RUNTIME}"
+    echo "command=./fuzz/scripts/run_fuzz.sh ${target} ${METRICS_OUTFILE} -- ${TEST_ARGS[@]} -max_total_time=${RUNTIME}"
     echo "----------------------------------------"
   } | tee "${LOG_FILE}" >/dev/null
 
   set +e
-  ./fuzz/scripts/run_fuzz.sh "${target}" "${METRICS_OUTFILE}" -- "${TEST_ARGS}" -max_total_time="${RUNTIME}" 2>&1 | ts '%s' | tee -a "${LOG_FILE}"
+  ./fuzz/scripts/run_fuzz.sh "${target}" "${METRICS_OUTFILE}" -- "${TEST_ARGS[@]}" -max_total_time="${RUNTIME}" 2>&1 | ts '%s' | tee -a "${LOG_FILE}"
   set -e
 
   ./fuzz/scripts/fuzz_cov.sh "${target}" "${COV_DIR}" "${COV_REP_NAME}"
