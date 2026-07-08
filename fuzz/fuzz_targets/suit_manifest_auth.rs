@@ -8,12 +8,10 @@ use dress_up::SuitManifest;
 use fuzz::{envelope_builder::build_envelope, os_hooks::OsHooks};
 
 fuzz_target!(|data: &[u8]| {
-    let selector = data.first().copied().unwrap_or(0);
-    let manifest = data.get(1..).unwrap_or(data);
     let payload = "hello world!";
 
-    // certain structure-awareness by wrapping inner manifest in valid SUIT envelope with valid auth block
-    let input = build_envelope(manifest);
+    // repair auth-constraint by wrapping inner manifest in valid SUIT envelope with valid auth block
+    let input = build_envelope(data);
 
     // class_id and vendor_id taken from minimal example
     // TODO: check if this also needs to be fuzzed
@@ -28,42 +26,7 @@ fuzz_target!(|data: &[u8]| {
     if let Ok(suit) = suit.authenticate(|_cose, _payload| Ok(true)) {
         if let Ok(envelope) = suit.envelope() {
             if let Ok(manifest) = envelope.manifest() {
-                // randomly select which function is called based on first byte of data
-                match selector % 10 {
-                    0 => {
-                        let _ = manifest.has_payload_fetch();
-                    }
-                    1 => {
-                        let _ = manifest.has_payload_installation();
-                    }
-                    2 => {
-                        let _ = manifest.has_image_validation();
-                    }
-                    3 => {
-                        let _ = manifest.has_image_loading();
-                    }
-                    4 => {
-                        let _ = manifest.has_invoke();
-                    }
-                    5 => {
-                        let _ = manifest.execute_payload_fetch(&hooks);
-                    }
-                    6 => {
-                        let _ = manifest.execute_payload_installation(&hooks);
-                    }
-                    7 => {
-                        let _ = manifest.execute_image_validation(&hooks);
-                    }
-                    8 => {
-                        let _ = manifest.execute_image_loading(&hooks);
-                    }
-                    9 => {
-                        let _ = manifest.execute_invoke(&hooks);
-                    }
-                    _ => {
-                        let _ = manifest.execute_full(&hooks);
-                    }
-                }
+                let _ = manifest.execute_full(&hooks);
             }
         }
     }

@@ -8,9 +8,6 @@ use dress_up::SuitManifest;
 use fuzz::os_hooks::OsHooks;
 
 fuzz_target!(|data: &[u8]| {
-    let selector = data.first().copied().unwrap_or(0);
-    let input = data.get(1..).unwrap_or(data);
-
     // class_id and vendor_id taken from minimal example
     // TODO: check if this makes any difference
     let class_id = uuid!("019c9a96-347b-7d98-acc9-b90117f4a665");
@@ -20,48 +17,13 @@ fuzz_target!(|data: &[u8]| {
     let payload = "hello world!";
     let hooks = OsHooks::new(4096, vendor_id, class_id, payload.as_bytes());
 
-    let suit = SuitManifest::from_bytes(&input);
+    let suit = SuitManifest::from_bytes(&data);
 
     // circumvent authentication by just returning true in closure
     if let Ok(suit) = suit.authenticate(|_, _| Ok(true)) {
         if let Ok(envelope) = suit.envelope() {
             if let Ok(manifest) = envelope.manifest() {
-                // randomly select which function is called based on first byte of data
-                match selector % 10 {
-                    0 => {
-                        let _ = manifest.has_payload_fetch();
-                    }
-                    1 => {
-                        let _ = manifest.has_payload_installation();
-                    }
-                    2 => {
-                        let _ = manifest.has_image_validation();
-                    }
-                    3 => {
-                        let _ = manifest.has_image_loading();
-                    }
-                    4 => {
-                        let _ = manifest.has_invoke();
-                    }
-                    5 => {
-                        let _ = manifest.execute_payload_fetch(&hooks);
-                    }
-                    6 => {
-                        let _ = manifest.execute_payload_installation(&hooks);
-                    }
-                    7 => {
-                        let _ = manifest.execute_image_validation(&hooks);
-                    }
-                    8 => {
-                        let _ = manifest.execute_image_loading(&hooks);
-                    }
-                    9 => {
-                        let _ = manifest.execute_invoke(&hooks);
-                    }
-                    _ => {
-                        let _ = manifest.execute_full(&hooks);
-                    }
-                }
+                let _ = manifest.execute_full(&hooks);
             }
         }
     }
