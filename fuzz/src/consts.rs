@@ -55,18 +55,21 @@ pub mod cbor {
 // COSE constant definitions.
 pub mod cose {
     use super::cbor;
-    // --- digest algorithm constants ---
-    // represented by negative int => -1 - value
-    /// Sha256 algorithm (-16)
-    pub const ALG_SHA_256: u8 = cbor::NINT_MAJOR_BASE + 15;
-    /// Shake128 algorithm (-18)
-    pub const ALG_SHAKE_128: u8 = cbor::NINT_MAJOR_BASE + 17;
-    /// Sha384 algorithm (-43)
-    pub const ALG_SHA_384: u8 = cbor::NINT_MAJOR_BASE + 42;
-    /// Sha512 algorithm (-44)
-    pub const ALG_SHA_512: u8 = cbor::NINT_MAJOR_BASE + 43;
-    /// Shake256 algorithm (-45)
-    pub const ALG_SHAKE_256: u8 = cbor::NINT_MAJOR_BASE + 44;
+
+    #[repr(u8)]
+    pub enum HashAlg {
+        Sha256 = cbor::NINT_MAJOR_BASE + 15,
+        Sha384 = cbor::NINT_MAJOR_BASE + 17,
+        Sha512 = cbor::NINT_MAJOR_BASE + 42,
+        Shake128 = cbor::NINT_MAJOR_BASE + 43,
+        Shake256 = cbor::NINT_MAJOR_BASE + 44,
+    }
+
+    impl HashAlg {
+        pub fn val(self) -> u8 {
+            self as u8
+        }
+    }
 }
 
 // SUIT Manifest constant definitions.

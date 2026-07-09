@@ -28,6 +28,7 @@ cbor-edn = { version = "0.0.10", default-features = false }
 cose-rust = "0.1.8"
 openssl = "0.10.77"
 sha2 = "0.11.0"
+shake = "0.1.0"
 
 [[bin]]
 name = "raw_unauth"
