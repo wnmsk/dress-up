@@ -19,7 +19,15 @@ fuzz_target!(|data: &[u8]| {
 
     let suit = SuitManifest::from_bytes(&data);
 
-    // circumvent authentication by just returning true in closure
+    // test functions on unauthenticated manifest
+    if let Ok(envelope) = suit.envelope() {
+        if let Ok(manifest) = envelope.manifest() {
+            let _ = manifest.version();
+            let _ = manifest.sequence_number();
+        }
+    }
+
+    // test functions on authenticated manifest
     if let Ok(suit) = suit.authenticate(|_, _| Ok(true)) {
         if let Ok(envelope) = suit.envelope() {
             if let Ok(manifest) = envelope.manifest() {
