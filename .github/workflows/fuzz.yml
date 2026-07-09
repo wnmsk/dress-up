@@ -17,12 +17,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: "Fuzz (unauth)"
-            target: "raw_unauth"
-          - name: "Fuzz (auth, no structure-awareness)"
-            target: "raw_auth"
-          - name: "Fuzz (auth, structure-awareness)"
-            target: "suit_manifest_auth"
+          - name: "Fuzz (no structure-awareness)"
+            target: "unaware"
+          - name: "Fuzz (envelope wrapper)"
+            target: "envlp_wrap"
 
     name: ${{ matrix.name }}
 

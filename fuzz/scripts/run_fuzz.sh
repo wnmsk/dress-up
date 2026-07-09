@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # run_fuzz.sh - Run already built fuzzer binary and export exit code and time‑to‑crash into a JSON file
 # Usage: ./run_fuzz.sh <fuzz_target_name> -- [cargo-fuzz / LibFuzzer arguments]
-# Example: ./run_fuzz.sh raw_unauth -- -timeout=30 -max_total_time=3600
+# Example: ./run_fuzz.sh unaware -- -timeout=30 -max_total_time=3600
 #
 # IMPORTANT: build the target BEFORE calling this script, otherwise the build process will be counted into the runtime
 #   --> cargo fuzz build <fuzz_target_name> <metrics_outfile>
@@ -13,19 +13,18 @@ set -euo pipefail
 
 if [[ $# -lt 2 ]]; then
   echo "Usage: $0 <fuzz_target_name> <metrics_outfile> -- [cargo-fuzz / LibFuzzer arguments]"
-  echo "  Example: $0 raw_unauth results/metrics/time_to_exit.json -- -timeout=10 -max_total_time=3600"
+  echo "  Example: $0 unaware results/metrics/time_to_exit.json -- -timeout=10 -max_total_time=3600"
   exit 2
 fi
 
 # Targets that need prepopulated corpora with complete manifest
 PREPOP_COMPLETE=(
-  raw_auth
-  raw_unauth
+  unaware
 )
 
 # Targets that need prepopulated corpora with inner manifest
 PREPOP_INNER=(
-  suit_manifest_auth
+  envlp_wrap
 )
 
 TARGET="$1"

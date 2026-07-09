@@ -9,7 +9,7 @@ set -euo pipefail
 
 if [[ $# -ne 3 ]]; then
     echo "Usage: $0 <target> <output_path> outfile_name_stem"
-    echo "  Example: $0 raw_unauth results/coverage cov_report"
+    echo "  Example: $0 unaware results/coverage cov_report"
     echo "    --> will then create reports in 'results/coverage/cov_report.html' and 'results/coverage/cov_report.txt'"
     exit 2
 fi

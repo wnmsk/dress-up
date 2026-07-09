@@ -31,22 +31,15 @@ sha2 = "0.11.0"
 shake = "0.1.0"
 
 [[bin]]
-name = "raw_unauth"
-path = "fuzz_targets/raw_unauth.rs"
+name = "unaware"
+path = "fuzz_targets/unaware.rs"
 test = false
 doc = false
 bench = false
 
 [[bin]]
-name = "raw_auth"
-path = "fuzz_targets/raw_auth.rs"
-test = false
-doc = false
-bench = false
-
-[[bin]]
-name = "suit_manifest_auth"
-path = "fuzz_targets/suit_manifest_auth.rs"
+name = "envlp_wrap"
+path = "fuzz_targets/envlp_wrap.rs"
 test = false
 doc = false
 bench = false

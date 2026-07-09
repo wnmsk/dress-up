@@ -9,11 +9,8 @@ located in `fuzz_targets/`
 
 #### pure mutation-based:
 
-- `raw_unauth`: Tries to parse and call functions on an unauthenticated SUIT Manifest directly from arbitrary bytes.
-- `raw_auth`: Tries to parse and call functions on an authenticated SUIT Manifest directly from arbitrary bytes.
-
-#### structure-aware:
-- `suit_manifest_auth`: Wraps arbitrary bytes into syntactically valid SUIT Envelope with valid authentication block. Tries to parse and call functions on an authenticated SUIT Manifest from this generated input.
+- `unaware`: Tries to parse and call functions on an authenticated SUIT Manifest directly from arbitrary bytes.
+- `envlp_wrap`: Wraps arbitrary bytes into syntactically valid SUIT Envelope with valid authentication block. Tries to parse and call functions on an authenticated SUIT Manifest from this generated input.
 
 ### Helper Scripts
 located in `scripts/`
@@ -80,7 +77,7 @@ Run the script (execute from project root):
 ```
 example:
 ```bash
-./fuzz/scripts/run_fuzz.sh raw_unauth -- -timeout=30 -max_total_time=3600
+./fuzz/scripts/run_fuzz.sh unaware -- -timeout=10 -max_total_time=3600
 ```
 
 The JSON with the results can then be found in `fuzz/results/metrics/`.
