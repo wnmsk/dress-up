@@ -11,7 +11,8 @@ fuzz_target!(|data: &[u8]| {
     let payload = "hello world!";
 
     let hash_select = data.first().copied().unwrap_or(0);
-    let data = data.get(1..).unwrap_or(data);
+    let fun_select = data.get(1).copied().unwrap_or(0);
+    let data = data.get(2..).unwrap_or(data);
 
     let hash_alg = match hash_select % 5 {
         0 => HashAlg::Sha256,
@@ -34,11 +35,37 @@ fuzz_target!(|data: &[u8]| {
 
     let suit = SuitManifest::from_bytes(&input);
 
+    // test functions on unauthenticated manifest
+    // TODO: revert maybe
+    // if let Ok(envelope) = suit.envelope() {
+    //     if let Ok(manifest) = envelope.manifest() {
+    //         let _ = manifest.version();
+    //         let _ = manifest.sequence_number();
+    //     }
+    // }
+
     // circumvent authentication by just returning true
     if let Ok(suit) = suit.authenticate(|_cose, _payload| Ok(true)) {
         if let Ok(envelope) = suit.envelope() {
             if let Ok(manifest) = envelope.manifest() {
-                let _ = manifest.execute_full(&hooks);
+
+                let _ = manifest.has_payload_fetch();
+                let _ = manifest.has_payload_installation();
+                let _ = manifest.has_image_validation();
+                let _ = manifest.has_image_loading();
+                let _ = manifest.has_invoke();
+
+                let _ = match fun_select % 6 {
+                    0 => manifest.execute_payload_fetch(&hooks),
+                    1 => manifest.execute_payload_installation(&hooks),
+                    2 => manifest.execute_image_validation(&hooks),
+                    3 => manifest.execute_image_loading(&hooks),
+                    4 => manifest.execute_invoke(&hooks),
+                    5 => manifest.execute_full(&hooks),
+                    _ => unreachable!()
+                };
+
+                // let _ = manifest.execute_full(&hooks);
             }
         }
     }
