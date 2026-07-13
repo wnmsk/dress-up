@@ -1,23 +1,16 @@
 # Fuzz
 
-This directory contains fuzzing targets for dress-up as well as helper scripts, using [`cargo-fuzz`](https://github.com/rust-fuzz/cargo-fuzz) (libFuzzer).
+This directory contains fuzzing tests for dress-up, using [`cargo-fuzz`](https://github.com/rust-fuzz/cargo-fuzz) (LibFuzzer).
 
 ## Contents
 
 ### Targets
-located in `fuzz_targets/`
+located in `fuzz_targets/`:
 
-#### pure mutation-based:
+- `unaware`: Tries to parse arbitrary bytes as a complete SUIT Manifest and executes dress-up functions on it.
+- `envlp_wrap`: Wraps arbitrary bytes into syntactically valid SUIT Envelope with valid authentication and tries to parse and call functions on it.
 
-- `unaware`: Tries to parse and call functions on an authenticated SUIT Manifest directly from arbitrary bytes.
-- `envlp_wrap`: Wraps arbitrary bytes into syntactically valid SUIT Envelope with valid authentication block. Tries to parse and call functions on an authenticated SUIT Manifest from this generated input.
 
-### Helper Scripts
-located in `scripts/`
-
-- `run_fuzz.sh`: Runs the specified target and exports exit code and time-to-crash into a JSON file. (**Important**: build the target before running it with the script because otherwise the build process will be included in the measured time)
-- `fuzz_cov.sh`: Generates code coverage reports (HTML and text) for specified target.
-- `run_tests.sh`: Builds and runs all targets specified for the specified time and generates reports.
 
 ## Setup
 
@@ -31,12 +24,26 @@ Install cargo-fuzz:
 cargo install cargo-fuzz
 ```
 
-Install llvm-tools (needed for coverage reports):
-```bash
-rustup component add --toolchain nightly llvm-tools-preview
-```
 
 ## Usage
+
+### Using Corpus
+
+There exists one prepopulated corpus for each of the two targets:
+- `corpus_complete_manifest`: contains examples of complete SUIT Manifests including envelope; used by the target `unaware`
+- `corpus_inner_manifest`: contains examples of only inner manifests without envelope or auth bloc; used by the target `envlp_wrap`
+
+The files contained in those directories can be used as "seed" for the target.
+
+To use the prepopulated corpus, you need to copy it before running the corresponding target:
+```bash
+cp -r <corpus_prepop>/* <corpus_dir>
+```
+
+For example, for the `unaware` target (executed from project root):
+```bash
+cp -r fuzz/corpus_complete_manifest fuzz/corpus_unaware
+```
 
 ### Running targets
 
@@ -50,6 +57,11 @@ Run a specific target:
 cargo fuzz run <target_name>
 ```
 
+Run the target with a prepopulated corpus directory:
+```bash
+cargo fuzz run <target_name> -- <corpus_dir>
+```
+
 Run with time limit (example: 60 seconds):
 ```bash
 cargo fuzz run <target_name> -- -max_total_time=60
@@ -60,49 +72,18 @@ Run with timeout (example: 2 seconds):
 cargo fuzz run <target_name> -- -timeout=2
 ```
 
-### Measure runtime / time-to-crash
+For other possible parameters, have a look at the [LibFuzzer docs](https://llvm.org/docs/LibFuzzer.html).
 
-To get some metrics for evaluating the different targets, you can use the helper script `run_fuzz.sh`. This will run the specified target with your arguments and save the target name, exit code and elapsed time to a JSON file.
 
-**Important**: For comparable results, you should build the target beforehand. Otherwise, the build process will be included in the measured time, which can distort the results.
+## Example
 
-Build the target:
+Running the target `envlp_wrap` (from project root):
+
+Copy the corpus directory
 ```bash
-cargo fuzz build <target_name>
+cp -r fuzz/corpus_inner_manifest fuzz/corpus_envlp_wrap
 ```
-
-Run the script (execute from project root):
+Run the target with a timeout of 5 seconds for a total duration of 5 minutes on the seed corpus
 ```bash
-./fuzz/scripts/run_fuzz.sh <target_name> -- [libFuzzer_arguments]
+cargo fuzz run envlp_wrap -- fuzz/corpus_envlp_wrap --timeout=5 -max_total_time=300
 ```
-example:
-```bash
-./fuzz/scripts/run_fuzz.sh unaware -- -timeout=10 -max_total_time=3600
-```
-
-The JSON with the results can then be found in `fuzz/results/metrics/`.
-
-### Generate coverage reports
-
-For an overview, how much of the projects code was covered by the specific target, the helper script `fuzz_cov.sh` will generate an HTML and a text code coverage report.
-
-Run the script (execute from project root):
-```bash
-./fuzz/scripts/fuzz_cov.sh <target_name>
-```
-
-The coverage reports can then be found in `fuzz/results/cov_reports/`.
-
-### Run tests locally
-
-The script `run_tests.sh` will run all targets (or a specific list of targets) locally for a specified amount of time and generate the corresponding results / reports.
-
-Run the script (execute from project root):
-```bash
-./fuzz/scripts/run_tests.sh <runtime> [TARGET ...]
-```
-
-- `<runtime>`: Amount of seconds for each target to run.
-- `[TARGET ...]`: Optional list of targets that will be tested (if none provided, the script will test all available targets).
-
-All results (including artifacts, corpora, coverage reports, metrics and the output from the targets) can be found in `fuzz/results/`.

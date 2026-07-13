@@ -64,8 +64,6 @@ fuzz_target!(|data: &[u8]| {
                     5 => manifest.execute_full(&hooks),
                     _ => unreachable!()
                 };
-
-                // let _ = manifest.execute_full(&hooks);
             }
         }
     }
