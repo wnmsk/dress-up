@@ -57,6 +57,15 @@ else
   mapfile -t TARGETS < <(cargo fuzz list)
 fi
 
+# Gather information about host
+HOSTNAME=$(hostname)
+OS_INFO=$(uname -a)
+CPU_INFO=$(lscpu)
+MEMORY_INFO=$(free -h)
+DISK_INFO=$(df -h)
+UPTIME_INFO=$(uptime)
+
+
 # Run targets
 for target in "${TARGETS[@]}"; do
   [[ -n "${target}" ]] || continue
@@ -70,13 +79,43 @@ for target in "${TARGETS[@]}"; do
   LOG_FILE="${LOG_DIR}/testrun_${DATE_TIME}_${target}.txt"
   CSV_FILE="${CSV_DIR}/testrun_${DATE_TIME}_${target}.csv"
 
-  {
-    echo "runtime=${RUNTIME}"
-    echo "target=${target}"
-    echo "date_time=${DATE_TIME}"
-    echo "command=./fuzz/scripts/run_fuzz.sh ${target} ${METRICS_OUTFILE} -- ${TEST_ARGS[@]} -max_total_time=${RUNTIME}"
-    echo "----------------------------------------"
-  } | tee "${LOG_FILE}" >/dev/null
+
+  cat > "$LOG_FILE" <<EOF
+=== System Information ===
+Generated: $DATE
+
+Hostname:
+$HOSTNAME
+
+Operating System:
+$OS_INFO
+
+CPU Information:
+$CPU_INFO
+
+Memory Information:
+$MEMORY_INFO
+
+Disk Usage:
+$DISK_INFO
+
+Uptime:
+$UPTIME_INFO
+
+----------------------------------------
+
+=== Target Information ===
+
+runtime=${RUNTIME}
+target=${target}
+date_time=${DATE_TIME}
+command=./fuzz/scripts/run_fuzz.sh ${target} ${METRICS_OUTFILE} -- ${TEST_ARGS[@]} -max_total_time=${RUNTIME}
+
+----------------------------------------
+
+=== Run Log ===
+
+EOF
 
   set +e
   ./fuzz/scripts/run_fuzz.sh "${target}" "${METRICS_OUTFILE}" -- "${TEST_ARGS[@]}" -max_total_time="${RUNTIME}" 2>&1 | ts '%s' | tee -a "${LOG_FILE}"
