@@ -1,4 +1,4 @@
-use crate::consts::{cbor, cose::HashAlg, suit};
+use crate::consts::{cbor, cose::HashAlg, suit, labels};
 use sha2::{Digest, Sha256, Sha384, Sha512};
 use shake::{ExtendableOutput, Shake128, Shake256, Update, XofReader};
 
@@ -118,14 +118,14 @@ pub fn build_envelope(manifest: &[u8], alg: HashAlg) -> Vec<u8> {
     envlp.push(cbor::map(2)); // map with 2 entries
 
     // --- auth block header ---
-    envlp.push(suit::ENVLP_AUTHENTICATION); // envelop key "Authentication"
+    envlp.push(labels::envelope_elements::AUTHENTICATION_WRAPPER); // envelop key "Authentication"
     envlp.extend(cbor_bstr_header(auth_block.len())); // auth block length
 
     // --- auth block ---
     envlp.extend_from_slice(&auth_block);
 
     // --- manifest header ---
-    envlp.push(suit::ENVLP_MANIFEST); // envelop key "Manifest"
+    envlp.push(labels::envelope_elements::MANIFEST); // envelop key "Manifest"
     envlp.extend(cbor_bstr_header(manifest.len())); // manifest length
 
     // --- inner manifest ---
