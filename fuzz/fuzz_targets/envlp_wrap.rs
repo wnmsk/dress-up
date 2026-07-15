@@ -37,12 +37,12 @@ fuzz_target!(|data: &[u8]| {
 
     // test functions on unauthenticated manifest
     // TODO: revert maybe
-    // if let Ok(envelope) = suit.envelope() {
-    //     if let Ok(manifest) = envelope.manifest() {
-    //         let _ = manifest.version();
-    //         let _ = manifest.sequence_number();
-    //     }
-    // }
+    if let Ok(envelope) = suit.envelope() {
+        if let Ok(manifest) = envelope.manifest() {
+            let _ = manifest.version();
+            let _ = manifest.sequence_number();
+        }
+    }
 
     // circumvent authentication by just returning true
     if let Ok(suit) = suit.authenticate(|_cose, _payload| Ok(true)) {
