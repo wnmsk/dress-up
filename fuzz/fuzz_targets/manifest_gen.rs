@@ -5,7 +5,10 @@ use libfuzzer_sys::fuzz_target;
 use uuid::uuid;
 
 use dress_up::SuitManifest;
-use fuzz::{consts::cose::HashAlg, envelope_builder::build_envelope, os_hooks::OsHooks};
+use fuzz::{
+    consts::cose::HashAlg, envelope_builder::build_envelope, manifest_builder::build_manifest,
+    os_hooks::OsHooks,
+};
 
 fuzz_target!(|data: &[u8]| {
     let payload = "hello world!";
@@ -23,8 +26,10 @@ fuzz_target!(|data: &[u8]| {
         _ => unreachable!(),
     };
 
+    let manifest = build_manifest(data);
+
     // repair auth-constraint by wrapping inner manifest in valid SUIT envelope with valid auth block
-    let input = build_envelope(data, hash_alg);
+    let input = build_envelope(&manifest, hash_alg);
 
     // class_id and vendor_id taken from minimal example
     // TODO: check if this also needs to be fuzzed

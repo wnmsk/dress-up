@@ -39,3 +39,10 @@ path = "fuzz_targets/envlp_wrap.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "manifest_gen"
+path = "fuzz_targets/manifest_gen.rs"
+test = false
+doc = false
+bench = false
