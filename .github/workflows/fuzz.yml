@@ -21,6 +21,8 @@ jobs:
             target: "unaware"
           - name: "Fuzz (envelope wrapper)"
             target: "envlp_wrap"
+          - name: "Fuzz (manifest builder)"
+            target: "manifest_gen"
 
     name: ${{ matrix.name }}
 
