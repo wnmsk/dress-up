@@ -17,35 +17,21 @@ if [[ $# -lt 2 ]]; then
   exit 2
 fi
 
-# Targets that need prepopulated corpora with complete manifest
-PREPOP_COMPLETE=(
-  unaware
-)
-
-# Targets that need prepopulated corpora with inner manifest
-PREPOP_INNER=(
-  envlp_wrap
-)
-
 TARGET="$1"
 OUTFILE="$2"
 shift 2 || true
 
-# use prepop corpus for target needing complete manifest
-for pre in "${PREPOP_COMPLETE[@]}"; do
-  if [[ "${TARGET}" == "${pre}" ]]; then
-    mkdir -p "fuzz/corpus/${TARGET}"
-    cp -r fuzz/corpus_complete_manifest/* fuzz/corpus/${TARGET}
-  fi
-done
-
-# use prepop corpus for target needing inner manifest
-for pre in "${PREPOP_INNER[@]}"; do
-  if [[ "${TARGET}" == "${pre}" ]]; then
-    mkdir -p "fuzz/corpus/${TARGET}"
-    cp -r fuzz/corpus_inner_manifest/* fuzz/corpus/${TARGET}
-  fi
-done
+# use prepop corpora for targets
+if [[ "${TARGET}" == "unaware" ]]; then
+  mkdir -p "fuzz/corpus/${TARGET}"
+  cp -r fuzz/corpus_complete_manifest/ fuzz/corpus/${TARGET}
+elif [[ "${TARGET}" == "envlp_wrap" ]]; then
+  mkdir -p "fuzz/corpus/${TARGET}"
+  cp -r fuzz/corpus_inner_manifest/ fuzz/corpus/${TARGET}
+elif [[ "${TARGET}" == "manifest_gen" ]]; then
+  mkdir -p "fuzz/corpus/${TARGET}"
+  # cp -r fuzz/corpus_manifest_gen/ fuzz/corpus/${TARGET}
+fi
 
 LIBFUZZER_ARGS=()
 echo "${1:-}"
