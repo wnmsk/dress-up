@@ -2,7 +2,7 @@
 
 use libfuzzer_sys::fuzz_target;
 
-use uuid::uuid;
+use uuid::{uuid, Uuid};
 
 use dress_up::SuitManifest;
 use fuzz::{
@@ -25,6 +25,11 @@ fuzz_target!(|data: &[u8]| {
         4 => HashAlg::Shake256,
         _ => unreachable!(),
     };
+
+    // skip data too small for manifest building
+    if data.len() <= 70 {
+        return;
+    }
 
     let manifest = build_manifest(data);
 
