@@ -132,22 +132,22 @@ pub fn build_manifest(data: &[u8]) -> Vec<u8> {
     // let version = 1;
     let seq_nr = [data[1], data[2]];
     let comp_ident = data[3];
-    // let vendor_id = &data[4..20]; // TODO: maybe just use constant id
-    // let class_id = &data[20..36]; // TODO: maybe just use constant id
+    let vendor_id = &data[4..20]; // TODO: maybe just use constant id
+    let class_id = &data[20..36]; // TODO: maybe just use constant id
     let img_hash = &data[36..68]; // TODO: maybe rather calculate hash here
     let img_size = [data[68], data[69]];
 
-    // use same class_id as declared in manifest_gen
-    let class_id: &[u8] = &[
-        0x01, 0x9c, 0x9a, 0x96, 0x34, 0x7b, 0x7d, 0x98, 0xac, 0xc9, 0xb9, 0x01, 0x17, 0xf4, 0xa6,
-        0x65,
-    ];
+    // // use same class_id as declared in manifest_gen
+    // let class_id: &[u8] = &[
+    //     0x01, 0x9c, 0x9a, 0x96, 0x34, 0x7b, 0x7d, 0x98, 0xac, 0xc9, 0xb9, 0x01, 0x17, 0xf4, 0xa6,
+    //     0x65,
+    // ];
 
-    // use same vendor_id as declared in manifest_gen
-    let vendor_id: &[u8] = &[
-        0x01, 0x9c, 0x9a, 0x95, 0xf6, 0xcb, 0x71, 0xa7, 0xa0, 0xa6, 0xaa, 0xc1, 0x48, 0xfc, 0x47,
-        0x43,
-    ];
+    // // use same vendor_id as declared in manifest_gen
+    // let vendor_id: &[u8] = &[
+    //     0x01, 0x9c, 0x9a, 0x95, 0xf6, 0xcb, 0x71, 0xa7, 0xa0, 0xa6, 0xaa, 0xc1, 0x48, 0xfc, 0x47,
+    //     0x43,
+    // ];
 
     // create common data block
     let common_data = build_common_data(comp_ident, vendor_id, class_id, img_hash, &img_size);
