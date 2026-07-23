@@ -86,4 +86,15 @@ pub trait OperatingHooks {
             command: SuitCommand::Fetch.into(),
         })
     }
+
+    /// Transfer execution to the current component.
+    fn invoke(
+        &self,
+        _component: &Component,
+        _arguments: &minicbor::bytes::ByteSlice,
+    ) -> Result<(), Error> {
+        Err(Error::UnsupportedCommand {
+            command: SuitCommand::Fetch.into(),
+        })
+    }
 }
