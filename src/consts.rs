@@ -164,7 +164,6 @@ impl TryFrom<i32> for SuitParameter {
             1 => Self::VendorId,
             2 => Self::ClassId,
             3 => Self::ImageDigest,
-            4 => Self::ComponentSlot,
             5 => Self::ComponentSlot,
             12 => Self::StrictOrder,
             13 => Self::SoftFailure,
