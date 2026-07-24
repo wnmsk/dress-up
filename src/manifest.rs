@@ -185,11 +185,13 @@ impl<'a> Manifest<'a, Authenticated> {
             })?;
             let component_info = ComponentInfo::new(component, idx);
 
-            let state =
-                common
-                    .shared_sequence()
-                    .execute(start_state.clone(), &component_info, os_hooks)?;
-            command_section.execute(state, &component_info, os_hooks)?;
+            let state = common.shared_sequence().execute(
+                start_state.clone(),
+                &component_info,
+                common.components,
+                os_hooks,
+            )?;
+            command_section.execute(state, &component_info, common.components, os_hooks)?;
         }
         Ok(())
     }

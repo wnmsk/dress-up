@@ -9,6 +9,7 @@ license = "MIT OR Apache-2.0"
 keywords = ["suit", "updates", "cbor"]
 categories = ["embedded", "no-std"]
 
+
 [dependencies]
 bitflags = { version = "2.11.1", default-features = false }
 ctutils = "0.4.2"
@@ -29,6 +30,7 @@ hex = "0.4.3"
 openssl = "0.10.77"
 
 [features]
+built-in-swap = []
 default = ["sha384", "sha512", "shake128", "shake256"]
 sha384 = []
 sha512 = []
