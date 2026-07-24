@@ -1,5 +1,7 @@
 #![no_std]
 #![allow(dead_code)]
+#![warn(clippy::pedantic)]
+#![allow(clippy::missing_errors_doc)]
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 #![deny(missing_docs)]
 
@@ -204,7 +206,7 @@ pub mod report;
 
 use crate::auth::Authentication;
 use crate::cbor::SubCbor;
-use crate::consts::*;
+use crate::consts::{SuitEnvelope, SUIT_TAG_ENVELOPE};
 use crate::error::Error;
 use crate::manifest::Manifest;
 
@@ -290,7 +292,7 @@ impl<'a> SuitManifest<'a, New> {
     }
 }
 
-impl<'a> SuitManifest<'a, Authenticated> {}
+impl SuitManifest<'_, Authenticated> {}
 
 impl<'a, S: AuthState> Envelope<'a, S> {
     fn get_object(&self, search_key: SuitEnvelope) -> Result<Option<&'a ByteSlice>, Error> {
@@ -314,9 +316,8 @@ impl<'a, S: AuthState> Envelope<'a, S> {
             if key == search_key.into() {
                 let buffer = decoder.sub_cbor()?;
                 return Ok(Some(buffer.into()));
-            } else {
-                decoder.skip()?;
             }
+            decoder.skip()?;
         }
         Ok(None)
     }
@@ -354,9 +355,9 @@ mod tests {
 
     use cose::{keys::CoseKey, message::CoseMessage};
 
-    fn build_key(pub_key: std::vec::Vec<u8>) -> CoseKey {
+    fn build_key(pub_key: &[u8]) -> CoseKey {
         // Parse EC public key into coordinates
-        let pub_key = openssl::ec::EcKey::public_key_from_pem(&pub_key).unwrap();
+        let pub_key = openssl::ec::EcKey::public_key_from_pem(pub_key).unwrap();
         let coordinates = pub_key.public_key();
         let group = pub_key.group();
         let mut x = openssl::bn::BigNum::new().unwrap();
@@ -398,7 +399,7 @@ bz/m4rVlnIXbwK07HypLbAmBMcCjbazR14vTgdzfsJwFLbM5kdtzOLSolg==
         .unwrap();
 
         let manifest = SuitManifest::from_bytes(&manifest);
-        let key = build_key(std::vec::Vec::from(PUB_KEY));
+        let key = build_key(&std::vec::Vec::from(PUB_KEY));
         let _ = manifest
             .authenticate(|cose, payload| {
                 let mut verify = CoseMessage::new_sign();

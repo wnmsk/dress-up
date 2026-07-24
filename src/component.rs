@@ -20,7 +20,7 @@ enum ComponentIndex<'a> {
     Set(&'a ByteSlice),
 }
 
-impl<'a> ComponentIndex<'a> {
+impl ComponentIndex<'_> {
     fn is_all(&self) -> bool {
         matches!(self, Self::All)
     }
@@ -93,17 +93,19 @@ pub(crate) struct ComponentIter<'a, 'b> {
     array_iter: ArrayIter<'b, 'a, Component<'a>>,
 }
 
-impl<'a, 'b> ComponentIter<'a, 'b> {
+impl<'a> ComponentIter<'a, '_> {
     pub(crate) fn new(decoder: &'a mut Decoder<'a>) -> Result<Self, Error> {
         let array_iter = decoder.array_iter::<Component>()?;
         Ok(ComponentIter { array_iter })
     }
 }
 
-impl<'a, 'b> Iterator for ComponentIter<'a, 'b> {
+impl<'a> Iterator for ComponentIter<'a, '_> {
     type Item = Result<Component<'a>, Error>;
     fn next(&mut self) -> Option<Self::Item> {
-        self.array_iter.next().map(|s| s.map_err(|e| e.into()))
+        self.array_iter
+            .next()
+            .map(|s| s.map_err(core::convert::Into::into))
     }
 }
 

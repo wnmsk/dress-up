@@ -11,19 +11,19 @@ impl ReportingPolicy {
         ReportingPolicy { policy }
     }
 
-    pub(crate) fn send_record_on_success(&self) -> bool {
+    pub(crate) fn send_record_on_success(self) -> bool {
         self.policy & 0x01 > 0
     }
 
-    pub(crate) fn send_record_on_failure(&self) -> bool {
+    pub(crate) fn send_record_on_failure(self) -> bool {
         self.policy & 0x02 > 0
     }
 
-    pub(crate) fn add_sysinfo_on_success(&self) -> bool {
+    pub(crate) fn add_sysinfo_on_success(self) -> bool {
         self.policy & 0x04 > 0
     }
 
-    pub(crate) fn add_sysinfo_on_failure(&self) -> bool {
+    pub(crate) fn add_sysinfo_on_failure(self) -> bool {
         self.policy & 0x08 > 0
     }
 }

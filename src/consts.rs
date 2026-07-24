@@ -71,11 +71,11 @@ pub enum Manifest {
     ImageLoading = 8,
     /// SUIT command sequence to invoke an image.
     ///
-    /// typically only contains the [[SuitCommand::Invoke] action.
+    /// typically only contains the [[`SuitCommand::Invoke`] action.
     ImageInvocation = 9,
     /// SUIT command sequence to obtain a payload.
     ///
-    /// Might be integrated into the [Manifest::PayloadInstallation] stage when the download
+    /// Might be integrated into the [`Manifest::PayloadInstallation`] stage when the download
     /// streams the payload into the installation location.
     PayloadFetch = 16,
     /// SUIT command sequence to install a payload.
@@ -124,7 +124,7 @@ pub enum SuitParameter {
     ClassId = 2,
     /// Digest of a component.
     ///
-    /// Contains an suit_digest structure.
+    /// Contains an `suit_digest` structure.
     /// Argument for [`SuitCommand::ImageMatch`].
     // Decodes into a [`crate::digest::SuitDigest`].
     ImageDigest = 3,
@@ -283,7 +283,8 @@ impl From<SuitCommand> for i32 {
 }
 
 impl SuitCommand {
-    pub(crate) fn has_report_policy(&self) -> bool {
+    #[allow(clippy::match_same_arms)]
+    pub(crate) fn has_report_policy(self) -> bool {
         match self {
             SuitCommand::Unset => false,
             SuitCommand::VendorIdentifier => true,
@@ -309,6 +310,7 @@ impl SuitCommand {
     /// Returns true if the command has side effects.
     ///
     /// Returns true for custom commands as these might have side effects.
+    #[must_use]
     pub fn has_side_effect(&self) -> bool {
         matches!(
             self,

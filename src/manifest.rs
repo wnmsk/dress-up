@@ -49,12 +49,10 @@ impl<'a, S: AuthState> Manifest<'a, S> {
                 let version = decoder.u8()?;
                 if version == crate::consts::SUIT_SUPPORTED_VERSION {
                     return Ok(version);
-                } else {
-                    return Err(Error::UnsupportedManifestVersion);
                 }
-            } else {
-                decoder.skip()?;
+                return Err(Error::UnsupportedManifestVersion);
             }
+            decoder.skip()?;
         }
         Err(Error::NoManifestVersion)
     }
@@ -69,9 +67,8 @@ impl<'a, S: AuthState> Manifest<'a, S> {
             let key = decoder.i16()?;
             if key == crate::consts::Manifest::SequenceNumber.into() {
                 return Ok(decoder.u64()?);
-            } else {
-                decoder.skip()?;
             }
+            decoder.skip()?;
         }
         Err(Error::NoSequenceNumber)
     }
@@ -92,9 +89,8 @@ impl<'a> Manifest<'a, Authenticated> {
             if key == section.into() {
                 let value = decoder.bytes()?;
                 return Ok(Some((value.into(), offset)));
-            } else {
-                decoder.skip()?;
             }
+            decoder.skip()?;
         }
         Ok(None)
     }
@@ -119,9 +115,9 @@ impl<'a> Manifest<'a, Authenticated> {
         if self.get_common()?.component_count()? > 1 {
             for section in crate::consts::SUIT_COMMAND_SECTIONS {
                 if let Some(command_sequence) = self.find_command_sequence(section)? {
-                    if let Some(command) = command_sequence.iter()?.next() {
+                    if let Some(command) = command_sequence.command_iter()?.next() {
                         let command = command?;
-                        if command.command != crate::consts::SuitCommand::SetComponentIndex {
+                        if command.label != crate::consts::SuitCommand::SetComponentIndex {
                             return Ok(false);
                         }
                     }
@@ -309,7 +305,7 @@ impl<'a> CommonSection<'a> {
             .array()
             .map_err(|e| Error::from(e).add_offset(self.component_offset))?
         {
-            Ok(num_components as usize)
+            Ok(usize::try_from(num_components).map_err(|_| Error::InvalidCommonSection)?)
         } else {
             Err(Error::UnexpectedIndefiniteLength {
                 position: self.component_offset,
@@ -330,6 +326,6 @@ impl<'a> CommonSection<'a> {
     fn verify_shared_sequence(&self) -> Result<bool, Error> {
         self.shared_sequence()
             .properties()
-            .map(|p| p.valid_shared_sequence())
+            .map(super::command::CommandSequenceProperties::valid_shared_sequence)
     }
 }

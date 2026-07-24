@@ -117,7 +117,7 @@ impl<'a> ManifestState<'a> {
     }
 
     pub(crate) fn set_invoke_args(&mut self, invoke_args: &'a ByteSlice) {
-        self.invoke_args = Some(invoke_args)
+        self.invoke_args = Some(invoke_args);
     }
 
     pub(crate) fn invoke_args_from_cbor(&mut self, decoder: &mut Decoder<'a>) -> Result<(), Error> {
@@ -161,7 +161,7 @@ impl<'a> ManifestState<'a> {
                         parameter: param.into(),
                     })
                 }
-            };
+            }
         }
         Ok(())
     }

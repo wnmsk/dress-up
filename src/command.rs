@@ -59,7 +59,7 @@ impl<'a> CommandArgument<'a> {
 
 #[derive(Clone, Debug)]
 pub(crate) struct Command<'a> {
-    pub(crate) command: SuitCommand,
+    pub(crate) label: SuitCommand,
     pub(crate) argument: CommandArgument<'a>,
     pub(crate) position: usize,
 }
@@ -125,10 +125,10 @@ impl<'a> CommandSequenceIterator<'a> {
 
     fn decode_command(&mut self) -> Result<Command<'a>, Error> {
         let position = self.d.position();
-        let command = self.d.i32()?.into();
-        let argument = CommandArgument::new(command, &mut self.d)?;
+        let label = self.d.i32()?.into();
+        let argument = CommandArgument::new(label, &mut self.d)?;
         Ok(Command {
-            command,
+            label,
             argument,
             position,
         })
@@ -188,7 +188,7 @@ impl<'a> CommandSequence<'a> {
         self.sequence
     }
 
-    pub(crate) fn iter(&self) -> Result<CommandSequenceIterator<'_>, Error> {
+    pub(crate) fn command_iter(&self) -> Result<CommandSequenceIterator<'_>, Error> {
         CommandSequenceIterator::new(self.sequence, self.offset)
     }
 
@@ -198,15 +198,15 @@ impl<'a> CommandSequence<'a> {
     ) -> Result<CommandSequenceProperties, Error> {
         for command in CommandSequenceIterator::new(self.sequence, self.offset)? {
             let mut command = command?;
-            if command.command.has_side_effect() {
+            if command.label.has_side_effect() {
                 content.set(CommandSequenceProperties::HasSideEffects, true);
-            } else if matches!(command.command, crate::consts::SuitCommand::Custom(_)) {
+            } else if matches!(command.label, crate::consts::SuitCommand::Custom(_)) {
                 content.set(CommandSequenceProperties::HasCustom, true);
-            } else if command.command == crate::consts::SuitCommand::VendorIdentifier {
+            } else if command.label == crate::consts::SuitCommand::VendorIdentifier {
                 content.set(CommandSequenceProperties::HasVendorCheck, true);
-            } else if command.command == crate::consts::SuitCommand::ClassIdentifier {
+            } else if command.label == crate::consts::SuitCommand::ClassIdentifier {
                 content.set(CommandSequenceProperties::HasClassCheck, true);
-            } else if command.command == crate::consts::SuitCommand::TryEach {
+            } else if command.label == crate::consts::SuitCommand::TryEach {
                 // inspect the commands inside
                 let mut decoder = command.get_argument_cbor()?.clone();
                 for sequence in decoder.array_iter::<&ByteSlice>()? {
@@ -214,7 +214,7 @@ impl<'a> CommandSequence<'a> {
                     if sequence.is_empty() {
                         continue;
                     }
-                    content = CommandSequence::new(sequence, 0).add_properties(content)?
+                    content = CommandSequence::new(sequence, 0).add_properties(content)?;
                 }
             }
         }
@@ -302,10 +302,10 @@ impl<'a, O: OperatingHooks> CommandSequenceExecutor<'a, O> {
     ) -> Result<(), Error> {
         let component = component_info.component();
         let argument_offset = command.get_argument_offset();
-        match command.command {
+        match command.label {
             SuitCommand::Unset => {
                 return Err(Error::UnsupportedCommand {
-                    command: command.command.into(),
+                    command: command.label.into(),
                 })
             }
             SuitCommand::Abort => {
@@ -350,7 +350,7 @@ impl<'a, O: OperatingHooks> CommandSequenceExecutor<'a, O> {
             SuitCommand::Swap => self.directive_swap(state, component_info, self.components)?,
             SuitCommand::TryEach => {
                 let mut argument = command.get_argument_cbor()?.clone();
-                self.try_each(state, component_info, &mut argument)?
+                self.try_each(state, component_info, &mut argument)?;
             }
             SuitCommand::VendorIdentifier => {
                 self.cond_vendor_identifier(state, component)?;
@@ -361,11 +361,10 @@ impl<'a, O: OperatingHooks> CommandSequenceExecutor<'a, O> {
             SuitCommand::Custom(n) => {
                 if n < -256 {
                     return Err(Error::UnsupportedCommand {
-                        command: command.command.into(),
+                        command: command.label.into(),
                     });
-                } else {
-                    self.custom_command(n, state, component)?
                 }
+                self.custom_command(n, state, component)?;
             }
         }
         Ok(())
@@ -380,21 +379,19 @@ impl<'a, O: OperatingHooks> CommandSequenceExecutor<'a, O> {
         for command in CommandSequenceIterator::new(self.command_sequence, self.offset)? {
             let mut command = command?;
             let position = command.position;
-            if !match_component {
-                if matches!(command.command, SuitCommand::SetComponentIndex) {
-                    if let CommandArgument::Cbor {
-                        ref mut decoder,
-                        offset,
-                    } = command.argument
-                    {
-                        match_component = component_info
-                            .in_applylist(decoder)
-                            .map_err(|e| e.add_offset(offset))?;
-                    }
-                }
-            } else {
+            if match_component {
                 self.process_command(&mut state, component_info, &mut match_component, command)
                     .map_err(|e| e.add_offset(position))?;
+            } else if matches!(command.label, SuitCommand::SetComponentIndex) {
+                if let CommandArgument::Cbor {
+                    ref mut decoder,
+                    offset,
+                } = command.argument
+                {
+                    match_component = component_info
+                        .in_applylist(decoder)
+                        .map_err(|e| e.add_offset(offset))?;
+                }
             }
         }
         Ok(state)
@@ -524,7 +521,7 @@ impl<'a, O: OperatingHooks> CommandSequenceExecutor<'a, O> {
                 let buf = &mut buf[0..read_size];
                 self.os_hooks
                     .component_read(component, state.component_slot, offset, buf)?;
-                hasher.update(buf)
+                hasher.update(buf);
             }
             digest.match_hasher(hasher).and_then(|b| {
                 if b {
@@ -579,7 +576,7 @@ impl<'a, O: OperatingHooks> CommandSequenceExecutor<'a, O> {
         }
         let mut decoder = Decoder::new(components);
         for (idx, source) in ComponentIter::new(&mut decoder)?.enumerate() {
-            if (idx as u32) == source_index {
+            if idx == source_index as usize {
                 let source_component = source?;
                 let size = self.os_hooks.component_size(&source_component)?;
 
@@ -635,7 +632,7 @@ impl<'a, O: OperatingHooks> CommandSequenceExecutor<'a, O> {
         }
         let mut decoder = Decoder::new(components);
         for (idx, source) in ComponentIter::new(&mut decoder)?.enumerate() {
-            if (idx as u32) == source_index {
+            if idx == source_index as usize {
                 let source_component = source?;
 
                 if state.image_digest.is_some() && state.image_size.is_some() {
