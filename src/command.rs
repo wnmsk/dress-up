@@ -358,7 +358,15 @@ impl<'a, O: OperatingHooks> CommandSequenceExecutor<'a, O> {
             SuitCommand::WriteContent => {
                 self.directive_write(state, component)?;
             }
-            SuitCommand::Custom(_n) => todo!(),
+            SuitCommand::Custom(n) => {
+                if n < -256 {
+                    return Err(Error::UnsupportedCommand {
+                        command: command.command.into(),
+                    });
+                } else {
+                    self.custom_command(n, state, component)?
+                }
+            }
         }
         Ok(())
     }
@@ -695,6 +703,15 @@ impl<'a, O: OperatingHooks> CommandSequenceExecutor<'a, O> {
         Err(Error::InvalidSourceComponent {
             identifier: source_index,
         })
+    }
+
+    fn custom_command(
+        &self,
+        number: i32,
+        state: &ManifestState,
+        component: &Component,
+    ) -> Result<(), Error> {
+        self.os_hooks.custom_command(number, state, component)
     }
 
     fn decode_reporting_policy(decoder: &mut Decoder) -> Result<ReportingPolicy, Error> {

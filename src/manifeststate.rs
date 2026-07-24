@@ -12,7 +12,7 @@ use uuid::Uuid;
 /// See also
 /// <https://datatracker.ietf.org/doc/html/draft-ietf-suit-manifest-34#name-suit_parameters>
 #[derive(Default, Clone, Debug, PartialEq)]
-pub(crate) struct ManifestState<'a> {
+pub struct ManifestState<'a> {
     pub(crate) content: Option<&'a ByteSlice>,
     pub(crate) vendor_id: Option<Uuid>,
     pub(crate) class_id: Option<Uuid>,

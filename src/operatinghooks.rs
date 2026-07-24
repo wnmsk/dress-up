@@ -3,7 +3,9 @@
 use generic_array::ArrayLength;
 use uuid::Uuid;
 
-use crate::{component::Component, consts::SuitCommand, error::Error};
+use crate::{
+    component::Component, consts::SuitCommand, error::Error, manifeststate::ManifestState,
+};
 
 /// A trait to expose operating system functionality to the SUIT manifest parsing
 ///
@@ -103,5 +105,15 @@ pub trait OperatingHooks {
         Err(Error::UnsupportedCommand {
             command: SuitCommand::Swap.into(),
         })
+    }
+
+    /// Execute a custom command
+    fn custom_command(
+        &self,
+        number: i32,
+        _state: &ManifestState,
+        _component: &Component,
+    ) -> Result<(), Error> {
+        Err(Error::UnsupportedCommand { command: number })
     }
 }
