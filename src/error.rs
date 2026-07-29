@@ -58,6 +58,16 @@ pub enum Error {
         /// Position of the command for which the parameter is not set in the manifest.
         position: usize,
     },
+    /// Source and target component are the same in the copy directive.
+    SameSourceAndTarget {
+        /// Identifier of the components.
+        identifier: u32,
+    },
+    /// Source component doesn't exists in the component list.
+    InvalidSourceComponent {
+        /// Identifier of the invalid component.
+        identifier: u32,
+    },
     /// CBOR element type at location is unexpected.
     UnexpectedCbor {
         /// Position of the unexpected CBOR element.
@@ -163,6 +173,18 @@ impl core::fmt::Display for Error {
                 write!(
                     f,
                     "unexpected indefinite length cbor container at {position}"
+                )
+            }
+            Self::SameSourceAndTarget { identifier } => {
+                write!(
+                    f,
+                    "source component at index {identifier} is the same than target in copy directive"
+                )
+            }
+            Self::InvalidSourceComponent { identifier } => {
+                write!(
+                    f,
+                    "source component index {identifier} not found in the component list"
                 )
             }
             Self::UnsupportedCommand { command } => write!(f, "command {command} not supported"),

@@ -12,7 +12,7 @@ use uuid::Uuid;
 /// See also
 /// <https://datatracker.ietf.org/doc/html/draft-ietf-suit-manifest-34#name-suit_parameters>
 #[derive(Default, Clone, Debug, PartialEq)]
-pub(crate) struct ManifestState<'a> {
+pub struct ManifestState<'a> {
     pub(crate) content: Option<&'a ByteSlice>,
     pub(crate) vendor_id: Option<Uuid>,
     pub(crate) class_id: Option<Uuid>,
@@ -21,6 +21,8 @@ pub(crate) struct ManifestState<'a> {
     pub(crate) component_slot: Option<u64>,
     pub(crate) image_size: Option<usize>,
     pub(crate) uri: Option<&'a str>,
+    pub(crate) invoke_args: Option<&'a ByteSlice>,
+    pub(crate) source_component: Option<u32>,
 }
 
 impl<'a> ManifestState<'a> {
@@ -114,6 +116,29 @@ impl<'a> ManifestState<'a> {
         Ok(())
     }
 
+    pub(crate) fn set_invoke_args(&mut self, invoke_args: &'a ByteSlice) {
+        self.invoke_args = Some(invoke_args);
+    }
+
+    pub(crate) fn invoke_args_from_cbor(&mut self, decoder: &mut Decoder<'a>) -> Result<(), Error> {
+        let invoke_args = decoder.bytes()?;
+        self.set_invoke_args(invoke_args.into());
+        Ok(())
+    }
+
+    pub(crate) fn set_source_component(&mut self, source_component: u32) {
+        self.source_component = Some(source_component);
+    }
+
+    pub(crate) fn source_component_from_cbor(
+        &mut self,
+        decoder: &mut Decoder<'a>,
+    ) -> Result<(), Error> {
+        let source_component = decoder.u32()?;
+        self.set_source_component(source_component);
+        Ok(())
+    }
+
     pub(crate) fn update_parameter(&mut self, decoder: &mut Decoder<'a>) -> Result<(), Error> {
         let position = decoder.position();
         let length = decoder.map()?;
@@ -127,18 +152,16 @@ impl<'a> ManifestState<'a> {
                 SuitParameter::ComponentSlot => self.component_slot_from_cbor(decoder)?,
                 SuitParameter::ImageSize => self.image_size_from_cbor(decoder)?,
                 SuitParameter::Uri => self.uri_from_cbor(decoder)?,
-                // SuitParameter::SourceComponent => todo!(),
-                SuitParameter::SourceComponent => {
-                    return Err(Error::Unimplemented);
-                }
+                SuitParameter::SourceComponent => self.source_component_from_cbor(decoder)?,
                 SuitParameter::DeviceId => self.device_id_from_cbor(decoder)?,
                 SuitParameter::Content => self.content_from_cbor(decoder)?,
+                SuitParameter::InvokeArgs => self.invoke_args_from_cbor(decoder)?,
                 param => {
                     return Err(Error::UnsupportedParameter {
                         parameter: param.into(),
                     })
                 }
-            };
+            }
         }
         Ok(())
     }
@@ -244,6 +267,25 @@ mod tests {
         params.update_parameter(&mut decoder).unwrap();
 
         assert_eq!(params.uri.unwrap(), uri);
+    }
+
+    #[test]
+    fn invoke_args() {
+        let invoke_arg = [0x02];
+        let input = std::vec![0xA1, 0x17, 0x41, 0x02];
+        let mut params = ManifestState::default();
+        let mut decoder = Decoder::new(&input);
+        params.update_parameter(&mut decoder).unwrap();
+        assert_eq!(params.invoke_args.unwrap().as_ref(), invoke_arg);
+    }
+
+    fn source_component() {
+        let source_component = 1;
+        let input = std::vec![0xA1, 0x16, 0x01];
+        let mut params = ManifestState::default();
+        let mut decoder = Decoder::new(&input);
+        params.update_parameter(&mut decoder).unwrap();
+        assert_eq!(params.source_component.unwrap(), source_component);
     }
 
     #[test]

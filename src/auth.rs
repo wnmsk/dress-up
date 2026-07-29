@@ -28,6 +28,8 @@ impl<'a> Authentication<'a> {
         if len < 2 {
             return Err(Error::InvalidAuthenticationStructure);
         }
+        let num_auth =
+            usize::try_from(len - 1).map_err(|_| Error::InvalidAuthenticationStructure)?;
         let digest = decoder.bytes()?;
         let mut digest_decoder = Decoder::new(digest);
         let suit_digest = digest_decoder.decode::<SuitDigest>()?;
@@ -39,7 +41,7 @@ impl<'a> Authentication<'a> {
         Ok(Self {
             digest: digest.into(),
             decoder,
-            num_auth: (len - 1) as usize,
+            num_auth,
         })
     }
 
