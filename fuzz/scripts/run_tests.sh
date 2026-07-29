@@ -39,9 +39,14 @@ SUM_DIR="${RESULTS_DIR}/run_summary"
 COV_DIR="${RESULTS_DIR}/cov_reports"
 METRICS_DIR="${RESULTS_DIR}/metrics"
 
+# Use venv if existing
+if [[ -d ".venv" ]]; then
+  source .venv/bin/activate
+fi
+
 mkdir -p "${LOG_DIR}" "${CORPUS_RESULTS_DIR}" "${ARTIFACTS_RESULTS_DIR}" "${CSV_DIR}" "${PLOT_DIR}" "${SUM_DIR}" "${COV_DIR}" "${METRICS_DIR}"
 
-# # Backup existing corpus/artifacts at beginning
+# Backup existing corpus/artifacts at beginning
 if [[ -d "fuzz/corpus" ]]; then
   mv "fuzz/corpus" "fuzz/corpus_bkp_${DATE_TIME}"
 fi
