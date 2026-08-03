@@ -26,13 +26,11 @@ RUNTIME="$1"
 shift || true
 
 # Dates/paths
-DATE="$(date +%F)"              # YYYY-MM-DD
-DATE_TIME="$(date +%F_%H-%M-%S)" # safe for filenames
+DATE="$(date +%F)"
+DATE_TIME="$(date +%F_%H-%M-%S)"
 
-RESULTS_DIR="fuzz/results/${DATE}"
+RESULTS_DIR="fuzz/results/${DATE}/${DATE_TIME}"
 LOG_DIR="${RESULTS_DIR}/test_logs"
-CORPUS_RESULTS_DIR="${RESULTS_DIR}/corpus"
-ARTIFACTS_RESULTS_DIR="${RESULTS_DIR}/artifacts"
 CSV_DIR="${RESULTS_DIR}/csv"
 PLOT_DIR="${RESULTS_DIR}/plots"
 SUM_DIR="${RESULTS_DIR}/run_summary"
@@ -46,8 +44,6 @@ fi
 
 mkdir -p \
   "${LOG_DIR}" \
-  "${CORPUS_RESULTS_DIR}" \
-  "${ARTIFACTS_RESULTS_DIR}" \
   "${CSV_DIR}" \
   "${PLOT_DIR}" \
   "${SUM_DIR}" \
@@ -91,11 +87,11 @@ for target in "${TARGETS[@]}"; do
   echo "Running target: ${target}"
   cargo fuzz build "${target}"
 
-  METRICS_OUTFILE="${METRICS_DIR}/${DATE_TIME}_${target}_time_to_exit.json"
-  COV_REP_NAME="${DATE_TIME}_${target}_cov"
+  METRICS_OUTFILE="${METRICS_DIR}/${target}_time_to_exit.json"
+  COV_REP_NAME="${target}_cov"
 
-  LOG_FILE="${LOG_DIR}/testrun_${DATE_TIME}_${target}.txt"
-  CSV_FILE="${CSV_DIR}/testrun_${DATE_TIME}_${target}.csv"
+  LOG_FILE="${LOG_DIR}/testrun_${target}.txt"
+  CSV_FILE="${CSV_DIR}/testrun_${target}.csv"
 
 
   cat > "$LOG_FILE" <<EOF
@@ -152,23 +148,23 @@ EOF
   python3 fuzz/tools/metrics_parser.py \
     "${LOG_FILE}" \
     --csv "${CSV_FILE}" \
-    2>&1 | tee -a "${SUM_DIR}"/testrun_"${DATE_TIME}"_"${target}"_summary.txt
+    2>&1 | tee -a "${SUM_DIR}"/"${target}"_summary.txt
 
   # plot full run, first 10 min and first 30 min
   python3 fuzz/tools/metrics_plotter.py \
     "${CSV_FILE}" \
-    --output "${PLOT_DIR}"/testrun_"${DATE_TIME}"_"${target}".png
+    --output "${PLOT_DIR}"/"${target}".png
   if [[ "${RUNTIME}" -gt 600 ]]; then
     python3 fuzz/tools/metrics_plotter.py \
       "${CSV_FILE}" \
       --end-time 10m \
-      --output "${PLOT_DIR}"/testrun_"${DATE_TIME}"_"${target}"_first_10m.png
+      --output "${PLOT_DIR}"/"${target}"_first_10m.png
   fi
   if [[ "${RUNTIME}" -gt 1800 ]]; then
     python3 fuzz/tools/metrics_plotter.py \
       "${CSV_FILE}" \
       --end-time 30m \
-      --output "${PLOT_DIR}"/testrun_"${DATE_TIME}"_"${target}"_first_30m.png
+      --output "${PLOT_DIR}"/"${target}"_first_30m.png
   fi
 
 done
@@ -180,18 +176,6 @@ echo "==================================="
 # Generate coverage reports
 ./fuzz/scripts/fuzz_cov.sh "${COV_DIR}" "${TARGETS[@]}"
 
-# Move resulting corpus/artifacts to results at end
-# If destination exists, add a timestamp suffix to avoid clobbering.
-move_dir_if_exists() {
-  local src="$1"
-  local dst_dir="$2"   # directory that should contain the moved folder (date dir)
-  local name="$3"      # corpus/artifacts
-
-  [[ -d "${src}" ]] || return 0
-
-  local dst="${dst_dir}/${name}_${DATE_TIME}"
-  mv "${src}" "${dst}"
-}
-
-move_dir_if_exists "fuzz/corpus"    "${CORPUS_RESULTS_DIR}"    "corpus"
-move_dir_if_exists "fuzz/artifacts" "${ARTIFACTS_RESULTS_DIR}" "artifacts"
+# Move corpus and artifact directories to results directory
+mv "fuzz/corpus" "${RESULTS_DIR}"
+mv "fuzz/artifacts" "${RESULTS_DIR}"

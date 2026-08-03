@@ -29,8 +29,6 @@ MERGE_CACHE="${OUT_PATH}/merge_cache"
 # --> https://github.com/rust-fuzz/cargo-fuzz/issues/308
 LLVM_BIN="$(rustup show home)/toolchains/${TOOLCHAIN}/lib/rustlib/x86_64-unknown-linux-gnu/bin"
 
-DATE_TIME="$(date +%F_%H-%M-%S)"
-
 for target in "${TARGETS[@]}"; do
 
     echo "Running cargo fuzz coverage for target \"${target}\" ..."
@@ -47,7 +45,7 @@ for target in "${TARGETS[@]}"; do
     BINARIES+=("${BINARY}")
 
     # generate HTML cov report
-    HTML_OUT="${OUT_PATH}/${DATE_TIME}_cov_${target}.html"
+    HTML_OUT="${OUT_PATH}/cov_${target}.html"
     echo "Creating HTML coverage report -> ${HTML_OUT} ..."
     # ignoring code in .cargo and .rustup to leave out dependency code
     # and focus on the actual project code
@@ -59,7 +57,7 @@ for target in "${TARGETS[@]}"; do
         > "${HTML_OUT}"
 
     # generate textual cov report
-    TXT_OUT="${OUT_PATH}/${DATE_TIME}_cov_${target}.txt"
+    TXT_OUT="${OUT_PATH}/cov_${target}.txt"
     echo "Creating textual coverage report -> ${TXT_OUT} ..."
     # ignoring code in .cargo and .rustup to leave out dependency code
     # and focus on the actual project code
@@ -87,7 +85,7 @@ echo "Merging profdata files..."
 
 echo "Generating combined coverage report..."
 
-COMB_HTML_OUT="${OUT_PATH}/${DATE_TIME}_cov_combined.html"
+COMB_HTML_OUT="${OUT_PATH}/cov_combined.html"
 echo "    Generating combined HTML report -> ${COMB_HTML_OUT} ..."
 # generate HTML report
 "${LLVM_BIN}"/llvm-cov show \
@@ -98,7 +96,7 @@ echo "    Generating combined HTML report -> ${COMB_HTML_OUT} ..."
     -ignore-filename-regex='/.cargo/|/.rustup/' \
     > "${COMB_HTML_OUT}"
 
-COMB_TXT_OUT="${OUT_PATH}/${DATE_TIME}_cov_combined.txt"
+COMB_TXT_OUT="${OUT_PATH}/cov_combined.txt"
 echo "    Generating combined text report -> ${COMB_TXT_OUT} ..."
 # generate text report
 "${LLVM_BIN}"/llvm-cov report \
