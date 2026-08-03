@@ -72,6 +72,40 @@ for target in "${TARGETS[@]}"; do
         -ignore-filename-regex='/.cargo/|/.rustup/|/fuzz/|/rustc/' \
         > "${TXT_OUT}"
 
+    echo "Done creating coverage reports for ${target}"
+
 done
 
-echo "All done."
+echo "Creating combined coverage reports..."
+
+echo "Merging profdata files..."
+
+"${LLVM_BIN}"/llvm-profdata merge \
+    -sparse \
+    "${PROFDATA_FILES[@]}" \
+    -o "${MERGE_CACHE}/merged.profdata"
+
+echo "Generating combined coverage report..."
+
+COMB_HTML_OUT="${OUT_PATH}/${DATE_TIME}_cov_combined.html"
+echo "    Generating combined HTML report -> ${COMB_HTML_OUT} ..."
+# generate HTML report
+"${LLVM_BIN}"/llvm-cov show \
+    "${BINARIES[0]}" \
+    $(printf -- '-object %q ' "${BINARIES[@]:1}") \
+    --format=html \
+    -instr-profile="${MERGE_CACHE}/merged.profdata" \
+    -ignore-filename-regex='/.cargo/|/.rustup/' \
+    > "${COMB_HTML_OUT}"
+
+COMB_TXT_OUT="${OUT_PATH}/${DATE_TIME}_cov_combined.txt"
+echo "    Generating combined text report -> ${COMB_TXT_OUT} ..."
+# generate text report
+"${LLVM_BIN}"/llvm-cov report \
+    "${BINARIES[0]}" \
+    $(printf -- '-object %q ' "${BINARIES[@]:1}") \
+    -instr-profile="${MERGE_CACHE}/merged.profdata" \
+    -ignore-filename-regex='/.cargo/|/.rustup/|/fuzz/|/rustc/' \
+    > "${COMB_TXT_OUT}"
+
+echo "Done."
