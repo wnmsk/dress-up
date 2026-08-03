@@ -138,7 +138,9 @@ EOF
     -- \
     "${TEST_ARGS[@]}" \
     -max_total_time="${RUNTIME}" \
-    2>&1 | ts '%s' | tee -a "${LOG_FILE}"
+    2>&1 | \
+    awk '{ print systime(), $0; fflush() }' | \
+    tee -a "${LOG_FILE}"
   set -e
 
   # python scripts to parse and plot run

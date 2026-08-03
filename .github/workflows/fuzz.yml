@@ -37,7 +37,6 @@ jobs:
           cargo install cargo-fuzz
           rustup component add --toolchain "$NIGHTLY_TOOLCHAIN" llvm-tools-preview
           pip install matplotlib
-          sudo apt install -y moreutils
 
       - name: Compute timestamp (for naming archives)
         id: ts
