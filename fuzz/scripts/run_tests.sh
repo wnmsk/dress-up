@@ -8,8 +8,8 @@
 set -euo pipefail
 
 if [[ $# -lt 1 ]]; then
-  echo "Usage: $0 RUNTIME [TARGET ...]"
-  echo "  RUNTIME: value passed to -max_total_time (e.g. 60, 300)"
+  echo "Usage: $0 <runtime> [TARGET ...]"
+  echo "  <runtime>: value passed to -max_total_time (e.g. 60, 300)"
   echo "  TARGET:  optional list of cargo-fuzz targets; if omitted uses: cargo fuzz list"
   exit 2
 fi
@@ -56,10 +56,12 @@ mkdir -p \
 
 # Backup existing corpus/artifacts at beginning
 if [[ -d "fuzz/corpus" ]]; then
+  echo "Backing up fuzz/corpus -> fuzz/corpus_bkp_${DATE_TIME}"
   mv "fuzz/corpus" "fuzz/corpus_bkp_${DATE_TIME}"
 fi
 
 if [[ -d "fuzz/artifacts" ]]; then
+  echo "Backing up fuzz/artifacts -> fuzz/artifacts_bkp_${DATE_TIME}"
   mv "fuzz/artifacts" "fuzz/artifacts_bkp_${DATE_TIME}"
 fi
 
@@ -78,6 +80,9 @@ MEMORY_INFO=$(free -h)
 DISK_INFO=$(df -h)
 UPTIME_INFO=$(uptime)
 
+echo "======================="
+echo "=== Running Targets ==="
+echo "======================="
 
 # Run targets
 for target in "${TARGETS[@]}"; do
@@ -140,8 +145,6 @@ EOF
     2>&1 | ts '%s' | tee -a "${LOG_FILE}"
   set -e
 
-  ./fuzz/scripts/fuzz_cov.sh "${target}" "${COV_DIR}" "${COV_REP_NAME}"
-
   # python scripts to parse and plot run
   # IMPORTANT: matplotlib must be installed in Python for this to work
 
@@ -169,6 +172,13 @@ EOF
   fi
 
 done
+
+echo "==================================="
+echo "=== Generating Coverage Reports ==="
+echo "==================================="
+
+# Generate coverage reports
+./fuzz/scripts/fuzz_cov.sh "${COV_DIR}" "${TARGETS[@]}"
 
 # Move resulting corpus/artifacts to results at end
 # If destination exists, add a timestamp suffix to avoid clobbering.
