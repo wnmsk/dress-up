@@ -6,7 +6,7 @@ on:
 env:
   CARGO_TERM_COLOR: always
   NIGHTLY_TOOLCHAIN: nightly-2026-06-01
-  MAX_TIME: 60 # 1min for testing purposes TODO: revert!
+  MAX_TIME: 3600
 
 jobs:
   fuzz:
