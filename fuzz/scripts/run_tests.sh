@@ -1,16 +1,39 @@
 #!/usr/bin/env bash
 # run_tests.sh – Run list of fuzzing targets for specific time
-# Usage: ./run_tests.sh <runtime> [TARGET ...]
+# Usage: ./run_tests.sh [--skip-cov] <runtime> [TARGET ...]
 #
 # Execute from project root
 #----------------------------------------------------------
 
 set -euo pipefail
 
+# Extract optional flags and keep positional arguments
+SKIP_COV=0
+POSITIONAL_ARGS=()
+
+for arg in "$@"; do
+  case $arg in
+    --skip-cov)
+      SKIP_COV=1
+      ;;
+    *)
+      POSITIONAL_ARGS+=("$arg")
+      ;;
+  esac
+done
+
+# Restore positional parameters (runtime and targets)
+if [[ ${#POSITIONAL_ARGS[@]} -gt 0 ]]; then
+  set -- "${POSITIONAL_ARGS[@]}"
+else
+  set --
+fi
+
 if [[ $# -lt 1 ]]; then
-  echo "Usage: $0 <runtime> [TARGET ...]"
-  echo "  <runtime>: value passed to -max_total_time (e.g. 60, 300)"
-  echo "  TARGET:  optional list of cargo-fuzz targets; if omitted uses: cargo fuzz list"
+  echo "Usage: $0 [--skip-cov] <runtime> [TARGET ...]"
+  echo "  --skip-cov: optionally skip generating coverage reports"
+  echo "  <runtime>:  value passed to -max_total_time (e.g. 60, 300)"
+  echo "  TARGET:     optional list of cargo-fuzz targets; if omitted uses: cargo fuzz list"
   exit 2
 fi
 
@@ -171,12 +194,20 @@ EOF
 
 done
 
-echo "==================================="
-echo "=== Generating Coverage Reports ==="
-echo "==================================="
+# Generate coverage reports on default
+# --> will be skipped in CI and done in separate job
+if [[ "${SKIP_COV}" -eq 0 ]]; then
+  echo "==================================="
+  echo "=== Generating Coverage Reports ==="
+  echo "==================================="
 
-# Generate coverage reports
-./fuzz/scripts/fuzz_cov.sh "${COV_DIR}" "${TARGETS[@]}"
+  # Generate coverage reports
+  ./fuzz/scripts/fuzz_cov.sh "${COV_DIR}" "${TARGETS[@]}"
+else
+  echo "==================================="
+  echo "=== Skipping Coverage Reports   ==="
+  echo "==================================="
+fi
 
 # Move corpus and artifact directories to results directory
 mv "fuzz/corpus" "${RESULTS_DIR}"
