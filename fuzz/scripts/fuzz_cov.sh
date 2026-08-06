@@ -74,36 +74,42 @@ for target in "${TARGETS[@]}"; do
 
 done
 
-echo "Creating combined coverage reports..."
+if [[ "${#TARGETS[@]}" -gt 1 ]]; then
 
-echo "Merging profdata files..."
+    echo "Creating combined coverage reports..."
 
-"${LLVM_BIN}"/llvm-profdata merge \
-    -sparse \
-    "${PROFDATA_FILES[@]}" \
-    -o "${MERGE_CACHE}/merged.profdata"
+    echo "Merging profdata files..."
 
-echo "Generating combined coverage report..."
+    "${LLVM_BIN}"/llvm-profdata merge \
+        -sparse \
+        "${PROFDATA_FILES[@]}" \
+        -o "${MERGE_CACHE}/merged.profdata"
 
-COMB_HTML_OUT="${OUT_PATH}/cov_combined.html"
-echo "    Generating combined HTML report -> ${COMB_HTML_OUT} ..."
-# generate HTML report
-"${LLVM_BIN}"/llvm-cov show \
-    "${BINARIES[0]}" \
-    $(printf -- '-object %q ' "${BINARIES[@]:1}") \
-    --format=html \
-    -instr-profile="${MERGE_CACHE}/merged.profdata" \
-    -ignore-filename-regex='/.cargo/|/.rustup/' \
-    > "${COMB_HTML_OUT}"
+    echo "Generating combined coverage report..."
 
-COMB_TXT_OUT="${OUT_PATH}/cov_combined.txt"
-echo "    Generating combined text report -> ${COMB_TXT_OUT} ..."
-# generate text report
-"${LLVM_BIN}"/llvm-cov report \
-    "${BINARIES[0]}" \
-    $(printf -- '-object %q ' "${BINARIES[@]:1}") \
-    -instr-profile="${MERGE_CACHE}/merged.profdata" \
-    -ignore-filename-regex='/.cargo/|/.rustup/|/fuzz/|/rustc/' \
-    > "${COMB_TXT_OUT}"
+    COMB_HTML_OUT="${OUT_PATH}/cov_combined.html"
+    echo "    Generating combined HTML report -> ${COMB_HTML_OUT} ..."
+    # generate HTML report
+    "${LLVM_BIN}"/llvm-cov show \
+        "${BINARIES[0]}" \
+        $(printf -- '-object %q ' "${BINARIES[@]:1}") \
+        --format=html \
+        -instr-profile="${MERGE_CACHE}/merged.profdata" \
+        -ignore-filename-regex='/.cargo/|/.rustup/' \
+        > "${COMB_HTML_OUT}"
+
+    COMB_TXT_OUT="${OUT_PATH}/cov_combined.txt"
+    echo "    Generating combined text report -> ${COMB_TXT_OUT} ..."
+    # generate text report
+    "${LLVM_BIN}"/llvm-cov report \
+        "${BINARIES[0]}" \
+        $(printf -- '-object %q ' "${BINARIES[@]:1}") \
+        -instr-profile="${MERGE_CACHE}/merged.profdata" \
+        -ignore-filename-regex='/.cargo/|/.rustup/|/fuzz/|/rustc/' \
+        > "${COMB_TXT_OUT}"
+
+else
+    echo "Only one target specified, skipping combined coverage report generation."
+fi
 
 echo "Done."
