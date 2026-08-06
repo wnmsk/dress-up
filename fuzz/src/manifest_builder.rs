@@ -1,6 +1,7 @@
 use crate::{
     cbor::cbor_bstr_header,
     consts::{self, cbor::map, labels},
+    reader::Reader,
 };
 
 fn build_img_digest(img_hash: &[u8]) -> Vec<u8> {
@@ -119,73 +120,61 @@ fn build_command_seq(label: u8) -> Vec<u8> {
     }
 }
 
-pub fn build_manifest(data: &[u8]) -> Vec<u8> {
-    let mut use_payload_installation = false;
 
-    if data.len() > 100 {
-        // TODO: maybe adjust threshold here
-        use_payload_installation = true; // TODO: use flag to determine if "Payload Installation" block will be included with additional bytes
+use crate::consts::labels::manifest_elements as me;
+use crate::suit::{encode_head, encode_uint, encode_tstr};
+
+/// A manifest element: (label, already-encoded value bytes)
+type Element = (u8, Vec<u8>);
+
+fn emit_map(entries: &[Element]) -> Vec<u8> {
+    let mut out = vec![consts::cbor::map(entries.len() as u8)];
+    for (label, value) in entries {
+        out.push(*label);
+        out.extend_from_slice(value);
+    }
+    out
+}
+
+fn bstr(payload: &[u8]) -> Vec<u8> {
+    let mut v = cbor_bstr_header(payload.len());
+    v.extend_from_slice(payload);
+    v
+}
+
+pub fn build_manifest(data: &[u8]) -> Vec<u8> {
+    let mut r = Reader::new(data);
+
+    let version = r.u8();
+    let seq_nr = r.u16();
+    let comp_ident = r.u8();
+    let vendor_id = r.bytes(16);
+    let class_id = r.bytes(16);
+    let img_hash = r.bytes(32);
+    // let img_size = r.u16();
+    let img_size = [r.u8(), r.u8()];
+
+    // one selector byte gates the optional elements
+    let sel = r.u8();
+
+    let mut entries: Vec<Element> = Vec::new();
+
+    // --- mandatory-ish elements, but still optional so the parser's
+    //     "missing field" error paths get covered ---
+    if sel & 0b0000_0001 != 0 {
+        entries.push((me::ENCODING_VERSION, encode_uint(version as u64)));
+    }
+    if sel & 0b0000_0010 != 0 {
+        entries.push((me::SEQUENCE_NUMBER, encode_uint(seq_nr as u64)));
     }
 
-    // specify content of the different fields from arbitrary bytes
-    let version = data[0];
-    // let version = 1;
-    let seq_nr = [data[1], data[2]];
-    let comp_ident = data[3];
-    let vendor_id = &data[4..20]; // TODO: maybe just use constant id
-    let class_id = &data[20..36]; // TODO: maybe just use constant id
-    let img_hash = &data[36..68]; // TODO: maybe rather calculate hash here
-    let img_size = [data[68], data[69]];
+    let common = build_common_data(comp_ident, &vendor_id, &class_id, &img_hash, &img_size);
+    entries.push((me::COMMON_DATA, bstr(&common)));
 
-    // // use same class_id as declared in manifest_gen
-    // let class_id: &[u8] = &[
-    //     0x01, 0x9c, 0x9a, 0x96, 0x34, 0x7b, 0x7d, 0x98, 0xac, 0xc9, 0xb9, 0x01, 0x17, 0xf4, 0xa6,
-    //     0x65,
-    // ];
+    if sel & 0b0000_0100 != 0 {
+        // reference-uri is a tstr
+        entries.push((me::REFERENCE_URI, encode_tstr("http://example.com/file1.bin")));
+    }
 
-    // // use same vendor_id as declared in manifest_gen
-    // let vendor_id: &[u8] = &[
-    //     0x01, 0x9c, 0x9a, 0x95, 0xf6, 0xcb, 0x71, 0xa7, 0xa0, 0xa6, 0xaa, 0xc1, 0x48, 0xfc, 0x47,
-    //     0x43,
-    // ];
-
-    // create common data block
-    let common_data = build_common_data(comp_ident, vendor_id, class_id, img_hash, &img_size);
-
-    // create command sequences
-    let com_seq_val = build_command_seq(labels::manifest_elements::IMAGE_VALIDATION);
-    let com_seq_inv = build_command_seq(labels::manifest_elements::IMAGE_INVOCATION);
-
-    // build manifest structure
-    let mut manifest: Vec<u8> = vec![];
-    manifest.push(consts::cbor::map(5)); // map containing all of the manifest
-
-    // --- suit-manifest-version ---
-    manifest.push(labels::manifest_elements::ENCODING_VERSION);
-    manifest.push(version);
-
-    // --- suit-manifest-sequence-number ---
-    manifest.push(labels::manifest_elements::SEQUENCE_NUMBER);
-    manifest.push(0x19); // header for "next two bytes uint" TODO: write function to variably calc uint header
-    manifest.extend(seq_nr);
-
-    // --- suit-common ---
-    manifest.push(labels::manifest_elements::COMMON_DATA);
-    manifest.extend(cbor_bstr_header(common_data.len()));
-    manifest.extend(common_data);
-
-    // command sequences; TODO: randomly select command sequences (maybe based on selector bytes again?)
-    // manually adding image validation and image invocation for the moment
-
-    // --- suit-validate ---
-    manifest.push(consts::labels::manifest_elements::IMAGE_VALIDATION);
-    manifest.extend(cbor_bstr_header(com_seq_val.len()));
-    manifest.extend(com_seq_val);
-
-    // --- suit-validate ---
-    manifest.push(consts::labels::manifest_elements::IMAGE_INVOCATION);
-    manifest.extend(cbor_bstr_header(com_seq_inv.len()));
-    manifest.extend(com_seq_inv);
-
-    manifest
+    emit_map(&entries)
 }
