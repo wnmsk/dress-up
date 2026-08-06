@@ -176,5 +176,110 @@ pub fn build_manifest(data: &[u8]) -> Vec<u8> {
         entries.push((me::REFERENCE_URI, encode_tstr("http://example.com/file1.bin")));
     }
 
+    // --- command sequences, each independently switchable ---
+    for (bit, label) in [
+        (0b0000_1000u8, me::PAYLOAD_FETCH),
+        (0b0001_0000, me::PAYLOAD_INSTALLATION),
+        (0b0010_0000, me::IMAGE_VALIDATION),
+        (0b0100_0000, me::IMAGE_LOADING),
+        (0b1000_0000, me::IMAGE_INVOCATION),
+    ] {
+        if sel & bit != 0 {
+            let seq = build_command_seq_fuzzed(&mut r);
+            entries.push((label, bstr(&seq)));
+        }
+    }
+
     emit_map(&entries)
+}
+
+
+// =================================================
+
+use crate::consts::labels::{commands as cmd, parameters as param};
+
+fn build_command_seq_fuzzed(r: &mut Reader) -> Vec<u8> {
+    build_seq(r, 3)
+}
+
+fn build_seq(r: &mut Reader, depth: u8) -> Vec<u8> {
+    // 1..=8 command/argument pairs
+    let n = (r.u8() % 8 + 1) as usize;
+    let mut items: Vec<u8> = Vec::new();
+    let mut count = 0u8;
+
+    for _ in 0..n {
+        if r.is_empty() {
+            break;
+        }
+        let (label, arg) = build_command(r, depth);
+        items.push(label);
+        items.extend_from_slice(&arg);
+        count += 2; // command sequences are flat arrays of [label, arg, label, arg, ...]
+    }
+
+    let mut out = encode_head(consts::cbor::ARRAY_MAJOR_BASE, count as u64);
+    out.extend_from_slice(&items);
+    out
+}
+
+fn build_command(r: &mut Reader, depth: u8) -> (u8, Vec<u8>) {
+    match r.choice(12) {
+        0 => (cmd::VENDOR_IDENTIFIER, encode_uint(15)),      // rep-policy style arg
+        1 => (cmd::CLASS_IDENTIFIER, encode_uint(15)),
+        2 => (cmd::IMAGE_MATCH, encode_uint(15)),
+        3 => (cmd::SET_COMPONENT_INDEX, encode_uint(r.u8() as u64)),
+        4 => (cmd::ABORT, encode_uint(0)),
+        5 => (cmd::COMPONENT_SLOT, encode_uint(r.u8() as u64)),
+        6 => (cmd::CHECK_CONTENT, encode_uint(15)),
+        7 => (cmd::OVERRIDE_PARAMETERS, build_params(r)),
+        8 => (cmd::FETCH, encode_uint(15)),
+        9 => (cmd::COPY, encode_uint(15)),
+        10 => (cmd::INVOKE, encode_uint(15)),
+        11 => {
+            if depth == 0 {
+                // bottom out with something harmless
+                (cmd::ABORT, encode_uint(0))
+            } else if r.flag() {
+                // try-each: array of bstr-wrapped sequences
+                let k = (r.u8() % 3 + 1) as usize;
+                let mut arms: Vec<u8> = encode_head(consts::cbor::ARRAY_MAJOR_BASE, k as u64);
+                for _ in 0..k {
+                    let inner = build_seq(r, depth - 1);
+                    arms.extend_from_slice(&bstr(&inner));
+                }
+                (cmd::TRY_EACH, arms)
+            } else {
+                let inner = build_seq(r, depth - 1);
+                (cmd::RUN_SEQUENCE, bstr(&inner))
+            }
+        }
+        _ => unreachable!(),
+    }
+}
+
+fn build_params(r: &mut Reader) -> Vec<u8> {
+    let n = (r.u8() % 6 + 1) as usize;
+    let mut items: Vec<u8> = Vec::new();
+    let mut count = 0u64;
+
+    for _ in 0..n {
+        match r.choice(9) {
+            0 => { items.push(param::VENDOR_ID);        items.extend(bstr(&r.bytes(16))); }
+            1 => { items.push(param::CLASS_ID);         items.extend(bstr(&r.bytes(16))); }
+            2 => { items.push(param::IMAGE_DIGEST);     items.extend(bstr(&build_img_digest(&r.bytes(32)))); }
+            3 => { items.push(param::IMAGE_SIZE);       items.extend(encode_uint(r.u16() as u64)); }
+            4 => { items.push(param::URI);              items.extend(encode_tstr("coap://[::1]/f")); }
+            5 => { items.push(param::CONTENT);          items.extend(bstr(&r.bytes(8))); }
+            6 => { items.push(param::STRICT_ORDER);     items.push(if r.flag() { 0xf5 } else { 0xf4 }); }
+            7 => { items.push(param::SOFT_FAILURE);     items.push(if r.flag() { 0xf5 } else { 0xf4 }); }
+            8 => { items.push(param::SOURCE_COMPONENT); items.extend(encode_uint(r.u8() as u64)); }
+            _ => unreachable!(),
+        }
+        count += 1;
+    }
+
+    let mut out = encode_head(consts::cbor::MAP_MAJOR_BASE, count);
+    out.extend_from_slice(&items);
+    out
 }
