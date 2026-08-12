@@ -63,12 +63,24 @@ impl<'a> OperatingHooks for OsHooks<'a> {
         &self,
         _component: &dress_up::component::Component,
         _slot: Option<u64>,
-        _offset: usize,
-        _bytes: &[u8],
-    ) -> Result<(), dress_up::error::Error> {
-        // return Error instead of todo!()-macro to prevent fuzzer from crashing
-        // TODO: maybe implement minimal logic
-        Err(dress_up::error::Error::Unimplemented)
+        offset: usize,
+        bytes: &[u8],
+    ) -> Result<(), Error> {
+        let mut storage = self.storage.take();
+        let end = match offset.checked_add(bytes.len()) {
+            Some(e) => e,
+            None => { self.storage.set(storage); return Err(Error::Unimplemented); }
+        };
+        if end > self.capacity {
+            self.storage.set(storage);
+            return Err(Error::InvalidCommandSequence { position: 0 });
+        }
+        if storage.len() < end {
+            storage.resize(end, 0);
+        }
+        storage[offset..end].copy_from_slice(bytes);
+        self.storage.set(storage);
+        Ok(())
     }
 
     fn component_size(
