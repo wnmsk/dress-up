@@ -4,6 +4,13 @@ use crate::{
     reader::Reader,
 };
 
+// BIG TODO:
+// - use dynamic vendor & class id
+// - make common data block dynamic
+// - add additional bytes as payload (maybe also depending on bitmap)
+// - [DONE] add additional component count
+// - generate REAL hash for payload ("hello world!")
+
 fn build_img_digest(img_hash: &[u8]) -> Vec<u8> {
     let mut img_digest = vec![];
 
@@ -62,12 +69,13 @@ fn build_common_com_seq(
 }
 
 fn build_common_data(
-    comp_ident: u8,
+    comps: &[u8],
     vendor_id: &[u8],
     class_id: &[u8],
     img_hash: &[u8],
     img_size: &[u8],
 ) -> Vec<u8> {
+    // TODO: make more dynamic
     // build common command sequence
     let common_com_seq = build_common_com_seq(vendor_id, class_id, img_hash, img_size);
 
@@ -78,10 +86,9 @@ fn build_common_data(
     // --- component identifiers ---
     // TODO: maybe push multiple components
     common_data.push(labels::common_elements::COMPONENT_IDENTIFIERS);
-    common_data.push(consts::cbor::array(1));
-    common_data.push(consts::cbor::array(1));
-    common_data.extend(cbor_bstr_header(1));
-    common_data.push(comp_ident);
+
+    // generated components
+    common_data.extend(comps);
 
     // --- common command sequence ---
     common_data.push(labels::common_elements::COMMON_COMMAND_SEQUENCE);
@@ -90,36 +97,6 @@ fn build_common_data(
 
     common_data
 }
-
-fn build_command_seq(label: u8) -> Vec<u8> {
-    match label {
-        consts::labels::manifest_elements::PAYLOAD_FETCH => {
-            todo!()
-        }
-        consts::labels::manifest_elements::PAYLOAD_INSTALLATION => {
-            todo!()
-        }
-        consts::labels::manifest_elements::IMAGE_VALIDATION => {
-            vec![
-                consts::cbor::array(2),
-                labels::commands::IMAGE_MATCH,
-                0b1111, // Reporting Policy 15 TODO: maybe make RP-builder function?
-            ]
-        }
-        consts::labels::manifest_elements::IMAGE_LOADING => {
-            todo!()
-        }
-        consts::labels::manifest_elements::IMAGE_INVOCATION => {
-            vec![
-                consts::cbor::array(2),
-                labels::commands::INVOKE,
-                0b0010, // Reporting Policy 02 TODO: maybe make RP-builder function?
-            ]
-        }
-        _ => panic!("unsupported command sequence label"),
-    }
-}
-
 
 use crate::consts::labels::manifest_elements as me;
 use crate::suit::{encode_head, encode_uint, encode_tstr};
@@ -148,8 +125,11 @@ pub fn build_manifest(data: &[u8]) -> Vec<u8> {
     let version = r.u8();
     let seq_nr = r.u16();
     let comp_ident = r.u8();
-    let vendor_id = r.bytes(16);
-    let class_id = r.bytes(16);
+    // let vendor_id = r.bytes(16);
+    // let class_id = r.bytes(16);
+    // TODO: try again with input from data
+    let class_id: &[u8] = &[0x01, 0x9c, 0x9a, 0x96, 0x34, 0x7b, 0x7d, 0x98, 0xac, 0xc9, 0xb9, 0x01, 0x17, 0xf4, 0xa6, 0x65];
+    let vendor_id: &[u8] = &[0x01, 0x9c, 0x9a, 0x95, 0xf6, 0xcb, 0x71, 0xa7, 0xa0, 0xa6, 0xaa, 0xc1, 0x48, 0xfc, 0x47, 0x43];
     let img_hash = r.bytes(32);
     // let img_size = r.u16();
     let img_size = [r.u8(), r.u8()];
@@ -168,7 +148,9 @@ pub fn build_manifest(data: &[u8]) -> Vec<u8> {
         entries.push((me::SEQUENCE_NUMBER, encode_uint(seq_nr as u64)));
     }
 
-    let common = build_common_data(comp_ident, &vendor_id, &class_id, &img_hash, &img_size);
+    let comps = build_components(&mut r);
+
+    let common = build_common_data(&comps, &vendor_id, &class_id, &img_hash, &img_size);
     entries.push((me::COMMON_DATA, bstr(&common)));
 
     if sel & 0b0000_0100 != 0 {
@@ -281,5 +263,21 @@ fn build_params(r: &mut Reader) -> Vec<u8> {
 
     let mut out = encode_head(consts::cbor::MAP_MAJOR_BASE, count);
     out.extend_from_slice(&items);
+    out
+}
+
+fn build_components(r: &mut Reader) -> Vec<u8> {
+    let n = (r.u8() % 4 + 1) as usize; // 1..=4 components TODO: maybe even add more?
+    let mut out = encode_head(consts::cbor::ARRAY_MAJOR_BASE, n as u64);
+    for _ in 0..n {
+        // each component-id is an array of bstr
+        let parts = (r.u8() % 3 + 1) as usize;
+        let mut c = encode_head(consts::cbor::ARRAY_MAJOR_BASE, parts as u64);
+        for _ in 0..parts {
+            let len = (r.u8() % 8) as usize;
+            c.extend(bstr(&r.bytes(len)));
+        }
+        out.extend_from_slice(&c);
+    }
     out
 }
