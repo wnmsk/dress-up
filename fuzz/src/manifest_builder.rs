@@ -31,11 +31,19 @@ fn build_common_com_seq(
     class_id: &[u8],
     img_hash: &[u8],
     img_size: &[u8],
+    comp_count: usize,
 ) -> Vec<u8> {
     let img_digest = build_img_digest(img_hash);
     let mut com_seq: Vec<u8> = vec![];
 
-    com_seq.push(consts::cbor::array(6)); // use array of static length 6 for now
+    if comp_count > 1 {
+        com_seq.push(cmd::SET_COMPONENT_INDEX);
+        com_seq.push(0); // TODO: remove hard coded component
+    }
+
+    // com_seq.push(consts::cbor::array(6)); // use array of static length 6 for now
+    let len = if comp_count > 1 { 8 } else { 6 };
+    com_seq.push(consts::cbor::array(len));
 
     // --- override parameters ---
     com_seq.push(labels::commands::OVERRIDE_PARAMETERS);
@@ -78,10 +86,11 @@ fn build_common_data(
     class_id: &[u8],
     img_hash: &[u8],
     img_size: &[u8],
+    comp_count: usize,
 ) -> Vec<u8> {
     // TODO: make more dynamic
     // build common command sequence
-    let common_com_seq = build_common_com_seq(vendor_id, class_id, img_hash, img_size);
+    let common_com_seq = build_common_com_seq(vendor_id, class_id, img_hash, img_size, comp_count);
 
     // build common data block
     let mut common_data: Vec<u8> = vec![];
@@ -123,7 +132,7 @@ fn bstr(payload: &[u8]) -> Vec<u8> {
     v
 }
 
-pub fn build_manifest(mut reader: Reader, payload: &[u8]) -> Vec<u8> {
+pub fn build_manifest(mut reader: Reader, payload: &[u8], class_id: &[u8], vendor_id: &[u8]) -> Vec<u8> {
     // let mut r = Reader::new(data);
 
     let version = reader.u8();
@@ -132,8 +141,8 @@ pub fn build_manifest(mut reader: Reader, payload: &[u8]) -> Vec<u8> {
     // let vendor_id = reader.bytes(16);
     // let class_id = reader.bytes(16);
     // TODO: try again with input from data
-    let class_id: &[u8] = &[0x01, 0x9c, 0x9a, 0x96, 0x34, 0x7b, 0x7d, 0x98, 0xac, 0xc9, 0xb9, 0x01, 0x17, 0xf4, 0xa6, 0x65];
-    let vendor_id: &[u8] = &[0x01, 0x9c, 0x9a, 0x95, 0xf6, 0xcb, 0x71, 0xa7, 0xa0, 0xa6, 0xaa, 0xc1, 0x48, 0xfc, 0x47, 0x43];
+    // let class_id: &[u8] = &[0x01, 0x9c, 0x9a, 0x96, 0x34, 0x7b, 0x7d, 0x98, 0xac, 0xc9, 0xb9, 0x01, 0x17, 0xf4, 0xa6, 0x65];
+    // let vendor_id: &[u8] = &[0x01, 0x9c, 0x9a, 0x95, 0xf6, 0xcb, 0x71, 0xa7, 0xa0, 0xa6, 0xaa, 0xc1, 0x48, 0xfc, 0x47, 0x43];
     // let img_hash = reader.bytes(32);
     let img_hash: [u8; 32] = Sha256::digest(payload).into();
     // let img_size = reader.u16();
@@ -154,9 +163,9 @@ pub fn build_manifest(mut reader: Reader, payload: &[u8]) -> Vec<u8> {
         entries.push((me::SEQUENCE_NUMBER, encode_uint(seq_nr as u64)));
     }
 
-    let comps = build_components(&mut reader);
+    let (comps, comp_count) = build_components(&mut reader);
 
-    let common = build_common_data(&comps, &vendor_id, &class_id, &img_hash, &img_size);
+    let common = build_common_data(&comps, &vendor_id, &class_id, &img_hash, &img_size, comp_count);
     entries.push((me::COMMON_DATA, bstr(&common)));
 
     if sel & 0b0000_0100 != 0 {
@@ -173,7 +182,7 @@ pub fn build_manifest(mut reader: Reader, payload: &[u8]) -> Vec<u8> {
         (0b1000_0000, me::IMAGE_INVOCATION),
     ] {
         if sel & bit != 0 {
-            let seq = build_command_seq_fuzzed(&mut reader);
+            let seq = build_command_seq_fuzzed(&mut reader, comp_count);
             entries.push((label, bstr(&seq)));
         }
     }
@@ -186,21 +195,28 @@ pub fn build_manifest(mut reader: Reader, payload: &[u8]) -> Vec<u8> {
 
 use crate::consts::labels::{commands as cmd, parameters as param};
 
-fn build_command_seq_fuzzed(reader: &mut Reader) -> Vec<u8> {
-    build_seq(reader, 3)
+fn build_command_seq_fuzzed(reader: &mut Reader, comp_count: usize) -> Vec<u8> {
+    build_seq(reader, 3, comp_count)
 }
 
-fn build_seq(reader: &mut Reader, depth: u8) -> Vec<u8> {
+fn build_seq(reader: &mut Reader, depth: u8, comp_count: usize) -> Vec<u8> {
     // 1..=8 command/argument pairs
     let n = (reader.u8() % 8 + 1) as usize;
     let mut items: Vec<u8> = Vec::new();
     let mut count = 0u8;
 
+    if comp_count > 1 {
+        let sci = build_set_component_index(reader, comp_count);
+
+        items.extend_from_slice(&sci);
+        count += 2;
+    }
+
     for _ in 0..n {
         if reader.is_empty() {
             break;
         }
-        let (label, arg) = build_command(reader, depth);
+        let (label, arg) = build_command(reader, depth, comp_count);
         items.push(label);
         items.extend_from_slice(&arg);
         count += 2; // command sequences are flat arrays of [label, arg, label, arg, ...]
@@ -211,20 +227,20 @@ fn build_seq(reader: &mut Reader, depth: u8) -> Vec<u8> {
     out
 }
 
-fn build_command(reader: &mut Reader, depth: u8) -> (u8, Vec<u8>) {
-    match reader.choice(12) {
+fn build_command(reader: &mut Reader, depth: u8, comp_count: usize) -> (u8, Vec<u8>) {
+    match reader.choice(11) {
         0 => (cmd::VENDOR_IDENTIFIER, encode_uint(15)),      // rep-policy style arg
         1 => (cmd::CLASS_IDENTIFIER, encode_uint(15)),
         2 => (cmd::IMAGE_MATCH, encode_uint(15)),
-        3 => (cmd::SET_COMPONENT_INDEX, encode_uint(reader.u8() as u64)),
-        4 => (cmd::ABORT, encode_uint(0)),
-        5 => (cmd::COMPONENT_SLOT, encode_uint(reader.u8() as u64)),
-        6 => (cmd::CHECK_CONTENT, encode_uint(15)),
-        7 => (cmd::OVERRIDE_PARAMETERS, build_params(reader)),
-        8 => (cmd::FETCH, encode_uint(15)),
-        9 => (cmd::COPY, encode_uint(15)),
-        10 => (cmd::INVOKE, encode_uint(15)),
-        11 => {
+        // 3 => (cmd::SET_COMPONENT_INDEX, encode_uint(reader.u8() as u64)),
+        3 => (cmd::ABORT, encode_uint(0)),
+        4 => (cmd::COMPONENT_SLOT, encode_uint(reader.u8() as u64)),
+        5 => (cmd::CHECK_CONTENT, encode_uint(15)),
+        6 => (cmd::OVERRIDE_PARAMETERS, build_params(reader)),
+        7 => (cmd::FETCH, encode_uint(15)),
+        8 => (cmd::COPY, encode_uint(15)),
+        9 => (cmd::INVOKE, encode_uint(15)),
+        10 => {
             if depth == 0 {
                 // bottom out with something harmless
                 (cmd::ABORT, encode_uint(0))
@@ -233,12 +249,12 @@ fn build_command(reader: &mut Reader, depth: u8) -> (u8, Vec<u8>) {
                 let k = (reader.u8() % 3 + 1) as usize;
                 let mut arms: Vec<u8> = encode_head(consts::cbor::ARRAY_MAJOR_BASE, k as u64);
                 for _ in 0..k {
-                    let inner = build_seq(reader, depth - 1);
+                    let inner = build_seq(reader, depth - 1, comp_count);
                     arms.extend_from_slice(&bstr(&inner));
                 }
                 (cmd::TRY_EACH, arms)
             } else {
-                let inner = build_seq(reader, depth - 1);
+                let inner = build_seq(reader, depth - 1, comp_count);
                 (cmd::RUN_SEQUENCE, bstr(&inner))
             }
         }
@@ -274,8 +290,19 @@ fn build_params(reader: &mut Reader) -> Vec<u8> {
 
 // ===================================================================
 
+fn build_set_component_index(reader: &mut Reader, comp_count: usize) -> Vec<u8> {
+    let mut out = Vec::new();
 
-fn build_components(reader: &mut Reader) -> Vec<u8> {
+    out.push(cmd::SET_COMPONENT_INDEX);
+
+    // TODO: also implement inex array and boolean true
+    let idx = reader.u8() as usize % comp_count;
+    out.extend(encode_uint(idx as u64));
+
+    out
+}
+
+fn build_components(reader: &mut Reader) -> (Vec<u8>, usize) {
     let n = (reader.u8() % 4 + 1) as usize; // 1..=4 components TODO: maybe even add more?
     let mut out = encode_head(consts::cbor::ARRAY_MAJOR_BASE, n as u64);
     for _ in 0..n {
@@ -288,5 +315,5 @@ fn build_components(reader: &mut Reader) -> Vec<u8> {
         }
         out.extend_from_slice(&c);
     }
-    out
+    (out, n)
 }
