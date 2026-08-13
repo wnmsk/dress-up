@@ -7,15 +7,25 @@ use uuid::{Uuid, uuid};
 use dress_up::SuitManifest;
 use fuzz::{
     consts::cose::HashAlg, envelope_builder::build_envelope, manifest_builder::build_manifest,
-    os_hooks::OsHooks,
+    os_hooks::OsHooks, reader::Reader,
 };
 
 fuzz_target!(|data: &[u8]| {
-    let payload = "hello world!";
+    let mut reader = Reader::new(data);
+    // let payload = "hello world!";
 
-    let hash_select = data.first().copied().unwrap_or(0);
-    let fun_select = data.get(1).copied().unwrap_or(0);
-    let data = data.get(2..).unwrap_or(data);
+    // take random number of bytes as payload
+    let n = reader.u8();
+    let payload = reader.bytes(n as usize);
+
+    // take selector bytes for envelope generation
+    // let hash_select = data.first().copied().unwrap_or(0);
+    // let fun_select = data.get(1).copied().unwrap_or(0);
+    // let data = data.get(2..).unwrap_or(data);
+
+    let hash_select = reader.u8();
+    let fun_select = reader.u8();
+    // let data = data.get(2..).unwrap_or(data);
 
     let hash_alg = match hash_select % 5 {
         0 => HashAlg::Sha256,
@@ -31,7 +41,7 @@ fuzz_target!(|data: &[u8]| {
     //     return;
     // }
 
-    let manifest = build_manifest(data);
+    let manifest = build_manifest(reader, &payload);
 
     // repair auth-constraint by wrapping inner manifest in valid SUIT envelope with valid auth block
     let input = build_envelope(&manifest, hash_alg);
@@ -44,7 +54,7 @@ fuzz_target!(|data: &[u8]| {
     // let vendor_id = Uuid::from_bytes(data[4..20].try_into().unwrap());
     // let class_id = Uuid::from_bytes(data[20..36].try_into().unwrap());
 
-    let hooks = OsHooks::new(4096, vendor_id, class_id, payload.as_bytes());
+    let hooks = OsHooks::new(4096, vendor_id, class_id, &payload);
 
     let suit = SuitManifest::from_bytes(&input);
 
