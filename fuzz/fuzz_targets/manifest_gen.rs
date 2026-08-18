@@ -2,7 +2,7 @@
 
 use libfuzzer_sys::fuzz_target;
 
-use uuid::{Uuid, uuid};
+use uuid::Uuid;
 
 use dress_up::SuitManifest;
 use fuzz::{
@@ -18,17 +18,29 @@ fuzz_target!(|data: &[u8]| {
     let n = reader.u8();
     let payload = reader.bytes(n as usize);
 
-    // take selector bytes for envelope generation
-    // let hash_select = data.first().copied().unwrap_or(0);
-    // let fun_select = data.get(1).copied().unwrap_or(0);
-    // let data = data.get(2..).unwrap_or(data);
-
     let hash_select = reader.u8();
     let fun_select = reader.u8();
-    // let data = data.get(2..).unwrap_or(data);
 
-    let class_id = reader.bytes(16);
-    let vendor_id = reader.bytes(16);
+    // use random class id in 1/3 of times
+    let class_id = match reader.choice(3) {
+        0..2 => vec![
+            0x01, 0x9c, 0x9a, 0x96, 0x34, 0x7b, 0x7d, 0x98, 0xac, 0xc9, 0xb9, 0x01, 0x17, 0xf4,
+            0xa6, 0x65,
+        ],
+        _ => reader.bytes(16),
+    };
+
+    // use random vendor id in 1/3 of times
+    let vendor_id = match reader.choice(3) {
+        0..2 => vec![
+            0x01, 0x9c, 0x9a, 0x95, 0xf6, 0xcb, 0x71, 0xa7, 0xa0, 0xa6, 0xaa, 0xc1, 0x48, 0xfc,
+            0x47, 0x43,
+        ],
+        _ => reader.bytes(16),
+    };
+
+    let vendor_uuid = Uuid::from_slice(&vendor_id).unwrap();
+    let class_uuid = Uuid::from_slice(&class_id).unwrap();
 
     let hash_alg = match hash_select % 5 {
         0 => HashAlg::Sha256,
@@ -39,30 +51,16 @@ fuzz_target!(|data: &[u8]| {
         _ => unreachable!(),
     };
 
-    // // skip data too small for manifest building
-    // if data.len() <= 70 {
-    //     return;
-    // }
-
     let manifest = build_manifest(reader, &payload, &class_id, &vendor_id);
 
     // repair auth-constraint by wrapping inner manifest in valid SUIT envelope with valid auth block
     let input = build_envelope(&manifest, hash_alg);
-
-    // class_id and vendor_id taken from minimal example
-    // TODO: check if this also needs to be fuzzed
-    // let class_id = uuid!("019c9a96-347b-7d98-acc9-b90117f4a665");
-    // let vendor_id = uuid!("019c9a95-f6cb-71a7-a0a6-aac148fc4743");
-
-    let vendor_uuid = Uuid::from_slice(&vendor_id).unwrap();
-    let class_uuid = Uuid::from_slice(&class_id).unwrap();
 
     let hooks = OsHooks::new(4096, vendor_uuid, class_uuid, &payload);
 
     let suit = SuitManifest::from_bytes(&input);
 
     // test functions on unauthenticated manifest
-    // TODO: revert maybe
     if let Ok(envelope) = suit.envelope() {
         if let Ok(manifest) = envelope.manifest() {
             let _ = manifest.version();
