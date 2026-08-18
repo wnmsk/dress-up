@@ -69,7 +69,10 @@ impl<'a> OperatingHooks for OsHooks<'a> {
         let mut storage = self.storage.take();
         let end = match offset.checked_add(bytes.len()) {
             Some(e) => e,
-            None => { self.storage.set(storage); return Err(Error::Unimplemented); }
+            None => {
+                self.storage.set(storage);
+                return Err(Error::Unimplemented);
+            }
         };
         if end > self.capacity {
             self.storage.set(storage);
