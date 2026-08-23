@@ -1,0 +1,58 @@
+{
+  "encoding_version": 1,
+  "sequence_number": 3,
+  "common": {
+    "component_identifiers": [
+      [
+        "00"
+      ]
+    ],
+    "common_command_sequence": [
+      {
+        "command": "override_parameters",
+        "parameters": {
+          "vendor_id": "fa6b4a53d5ad5fdfbe9de663e4d41ffe",
+          "class_id": "1492af1425695e48bf429b2d51f2ab45"
+        }
+      },
+      {
+        "command": "try_each",
+        "argument": [
+          "8614a10500050514a2035824822f582000112233445566778899aabbccddeeff0123456789abcdeffedcba98765432100e1987d0",
+          "8614a10501050514a2035824822f58200123456789abcdeffedcba987654321000112233445566778899aabbccddeeff0e1a00012c22"
+        ]
+      },
+      {
+        "command": "vendor_identifier",
+        "argument": 15
+      },
+      {
+        "command": "class_identifier",
+        "argument": 15
+      }
+    ]
+  },
+  "image_validation": [
+    {
+      "command": "image_match",
+      "argument": 15
+    }
+  ],
+  "payload_install": [
+    {
+      "command": "try_each",
+      "argument": [
+        "8614a10500050514a115781c687474703a2f2f6578616d706c652e636f6d2f66696c65312e62696e",
+        "8614a10501050514a115781c687474703a2f2f6578616d706c652e636f6d2f66696c65322e62696e"
+      ]
+    },
+    {
+      "command": "fetch",
+      "argument": 2
+    },
+    {
+      "command": "image_match",
+      "argument": 15
+    }
+  ]
+}
