@@ -21,18 +21,18 @@ fuzz_target!(|data: &[u8]| {
     let hash_select = reader.u8();
     let fun_select = reader.u8();
 
-    // use random class id in 1/3 of times
+    // use random class id in 2/3 of times
     let class_id = match reader.choice(3) {
-        0..2 => vec![
+        0 => vec![
             0x01, 0x9c, 0x9a, 0x96, 0x34, 0x7b, 0x7d, 0x98, 0xac, 0xc9, 0xb9, 0x01, 0x17, 0xf4,
             0xa6, 0x65,
         ],
         _ => reader.bytes(16),
     };
 
-    // use random vendor id in 1/3 of times
+    // use random vendor id in 2/3 of times
     let vendor_id = match reader.choice(3) {
-        0..2 => vec![
+        0 => vec![
             0x01, 0x9c, 0x9a, 0x95, 0xf6, 0xcb, 0x71, 0xa7, 0xa0, 0xa6, 0xaa, 0xc1, 0x48, 0xfc,
             0x47, 0x43,
         ],
@@ -41,6 +41,8 @@ fuzz_target!(|data: &[u8]| {
 
     let vendor_uuid = Uuid::from_slice(&vendor_id).unwrap();
     let class_uuid = Uuid::from_slice(&class_id).unwrap();
+
+    let hooks = OsHooks::new(4096, vendor_uuid, class_uuid, &payload);
 
     let hash_alg = match hash_select % 5 {
         0 => HashAlg::Sha256,
@@ -51,12 +53,12 @@ fuzz_target!(|data: &[u8]| {
         _ => unreachable!(),
     };
 
+    // build inner manifest from fuzzer input
     let manifest = build_manifest(reader, &payload, &class_id, &vendor_id);
 
-    // repair auth-constraint by wrapping inner manifest in valid SUIT envelope with valid auth block
+    // repair auth-constraint by wrapping inner manifest
+    // in valid SUIT envelope with valid auth block
     let input = build_envelope(&manifest, hash_alg);
-
-    let hooks = OsHooks::new(4096, vendor_uuid, class_uuid, &payload);
 
     let suit = SuitManifest::from_bytes(&input);
 
@@ -68,6 +70,7 @@ fuzz_target!(|data: &[u8]| {
         }
     }
 
+    // test functions on authenticated manifest
     // circumvent authentication by just returning true
     if let Ok(suit) = suit.authenticate(|_cose, _payload| Ok(true)) {
         if let Ok(envelope) = suit.envelope() {
