@@ -19,7 +19,6 @@ fuzz_target!(|data: &[u8]| {
 
     let hash_select = reader.u8();
     let fun_select = reader.u8();
-    let data = reader.remaining();
 
     // use random class id in 2/3 of times
     let class_id = match reader.choice(3) {
@@ -52,6 +51,8 @@ fuzz_target!(|data: &[u8]| {
         4 => HashAlg::Shake256,
         _ => unreachable!(),
     };
+
+    let data = reader.remaining();
 
     // repair auth-constraint by wrapping inner manifest
     // in valid SUIT envelope with valid auth block
