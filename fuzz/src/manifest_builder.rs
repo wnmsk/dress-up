@@ -25,7 +25,7 @@ pub fn build_manifest(
     let version = reader.u8();
     let seq_nr = reader.u16();
     let img_hash: [u8; 32] = Sha256::digest(payload).into();
-    let img_size = encode_uint(img_hash.len() as u64);
+    let img_size = encode_uint(payload.len() as u64);
 
     // one selector byte gates the optional elements
     let sel = reader.u8();
