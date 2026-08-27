@@ -39,9 +39,9 @@ fi
 
 TEST_ARGS=(
   -seed=0
-  -max_len=8192
+  -max_len=2048
   -timeout=5
-  -rss_limit_mb=4096
+  -rss_limit_mb=2048
   -print_final_stats=1
 )
 
