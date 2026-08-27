@@ -87,3 +87,67 @@ Run the target with a timeout of 5 seconds for a total duration of 5 minutes on 
 ```bash
 cargo fuzz run envlp_wrap -- fuzz/corpus_envlp_wrap --timeout=5 -max_total_time=300
 ```
+
+---
+---
+
+# Evaluation
+
+To evaluate the different stages of structure-awareness, there are some test scripts included.
+
+## Setup
+
+To be able to run the test code, you need to have `llvm-tools-preview` and `matplotlib` installed:
+```
+rustup component add --toolchain nightly llvm-tools-preview
+```
+```
+pip install matplotlib
+```
+
+*note:* The script automatically checks for a `.venv` directory in the root directory and activates it if present.
+
+## Run the test script
+
+The test script and the other scripts that it calls can be found in the directory `scripts`.
+
+Execute the following from the project's root directory:
+```bash
+./fuzz/scripts/run_tests.sh [--skip-cov] <runtime> [TARGET ...]
+```
+
+Example:
+```bash
+./fuzz/scripts/run_tests.sh 3600
+```
+This will run all available targets after each other for 1h each.
+
+If you want to only run specific targets, you can list them after the runtime
+```bash
+./fuzz/scripts/run_tests.sh 3600 unaware envlp_wrap
+```
+
+You also can add a `--skip-cov` argument, if you do not want a coverage report generated.
+This feature was mainly added for CI usage.
+
+After the script is done, you can find the following in the `results` directory:
+- `artifacts`/`corpus`: The corresponding directories from the fuzzing run.
+- `cov_reports`: Coverage reports (text and HTML) for each target and for all combined.
+- `csv`: CSV files parsed from the fuzzer output from each run, containing all the necessary information for evaluating the run.
+- `metrics`: JSON files for each target that contain the exit code of the run and the actual runtime. Helpful to indicate if the fuzzer did crash and after what time.
+- `plots`: Plots generated out of the CSV files, showing the coverage, exec/s and corpus growth over time.
+- `run_summary`: Quick summaries with the most important information about the runs.
+- `test_logs`: The complete fuzzer output of the run preceded by hardware information about the machine used to run the tests.
+
+## Other tools:
+
+There are also some other helper scripts included in the `tools` directory that generally come in handy:
+
+- `convert_suit_to_inner.sh`: A small bash script that calls the script `manifest_extractor.py` on all SUIT manifest files in a directory.
+- `line_counter.py`: A Python script that counts the LoC of a Rust file, excluding comments and newlines.
+- `manifest_extractor.py`: A Python script that extracts the inner manifest from a SUIT envelope.
+- `metrics_parser.py`: A Python script that can parse the `LibFuzzer` output to a CSV or JSON file.
+- `metrics_plotter.py`: A Python script that takes a CSV file from `metrics_parser.py` and plots a graph showing the coverage, exec/s and corpus development during the run.
+- `suit_decode.py`: A Python script that decodes the contents of a CBOR encoded manifest to JSON.
+
+*note:* The scripts `manifest_extractor.py` and `suit_decode.py` need the Python package `cbor2` installed.
