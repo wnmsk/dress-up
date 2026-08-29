@@ -37,7 +37,6 @@ jobs:
           rustup toolchain install "$NIGHTLY_TOOLCHAIN"
           rustup default "$NIGHTLY_TOOLCHAIN"
           cargo install cargo-fuzz
-          rustup component add --toolchain "$NIGHTLY_TOOLCHAIN" llvm-tools-preview
           pip install matplotlib
 
       - name: Build fuzz target
