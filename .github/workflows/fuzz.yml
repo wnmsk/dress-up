@@ -2,11 +2,15 @@ name: Fuzz
 on:
   push:
   pull_request:
+  schedule:
+    # Weekly on Sundays at 00:01 UTC
+    - cron: "1 0 * * 0"
 
 env:
   CARGO_TERM_COLOR: always
   NIGHTLY_TOOLCHAIN: nightly-2026-04-20
-  MAX_TIME: 3600
+  # Run 1h on regular runs and 5h on weekly scheduled runs
+  MAX_TIME: ${{ github.event_name == 'schedule' && 18000 || 3600 }}
 
 jobs:
   fuzz:
