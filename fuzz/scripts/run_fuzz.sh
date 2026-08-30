@@ -22,15 +22,19 @@ OUTFILE="$2"
 shift 2 || true
 
 # use prepop corpora for targets
-if [[ "${TARGET}" == "unaware" ]]; then
-  mkdir -p "fuzz/corpus/${TARGET}"
-  cp -r fuzz/corpus_complete_manifest/* fuzz/corpus/${TARGET}
-elif [[ "${TARGET}" == "envlp_wrap" ]]; then
-  mkdir -p "fuzz/corpus/${TARGET}"
-  cp -r fuzz/corpus_inner_manifest/* fuzz/corpus/${TARGET}
-elif [[ "${TARGET}" == "manifest_gen" ]]; then
-  mkdir -p "fuzz/corpus/${TARGET}"
-  # cp -r fuzz/corpus_manifest_gen/* fuzz/corpus/${TARGET}
+if [[ "${NO_CORPUS}" -eq 0 ]]; then
+  if [[ "${TARGET}" == "unaware" ]]; then
+    mkdir -p "fuzz/corpus/${TARGET}"
+    cp -r fuzz/corpus_complete_manifest/* fuzz/corpus/${TARGET}
+  elif [[ "${TARGET}" == "envlp_wrap" ]]; then
+    mkdir -p "fuzz/corpus/${TARGET}"
+    cp -r fuzz/corpus_inner_manifest/* fuzz/corpus/${TARGET}
+  elif [[ "${TARGET}" == "manifest_gen" ]]; then
+    mkdir -p "fuzz/corpus/${TARGET}"
+    # cp -r fuzz/corpus_manifest_gen/* fuzz/corpus/${TARGET}
+  fi
+else
+  echo "Skipping corpus copy for target ${TARGET} (NO_CORPUS variable set)"
 fi
 
 LIBFUZZER_ARGS=()
