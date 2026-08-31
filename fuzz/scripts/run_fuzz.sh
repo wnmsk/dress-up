@@ -21,8 +21,15 @@ TARGET="$1"
 OUTFILE="$2"
 shift 2 || true
 
-# use prepop corpora for targets
-if [[ "${NO_CORPUS}" -eq 0 ]]; then
+# set NO_CORPUS to 0 if it is not set
+NO_CORPUS=${NO_CORPUS:-0}
+
+# skip prepop corpora for targets
+if [[ "${NO_CORPUS}" -eq 1 ]]; then
+  echo "Skipping corpus copy for target ${TARGET} (NO_CORPUS variable set)"
+  mkdir -p "fuzz/corpus/${TARGET}"
+else
+  # use prepop corpora for targets
   if [[ "${TARGET}" == "unaware" ]]; then
     mkdir -p "fuzz/corpus/${TARGET}"
     cp -r fuzz/corpus_complete_manifest/* fuzz/corpus/${TARGET}
@@ -33,8 +40,6 @@ if [[ "${NO_CORPUS}" -eq 0 ]]; then
     mkdir -p "fuzz/corpus/${TARGET}"
     # cp -r fuzz/corpus_manifest_gen/* fuzz/corpus/${TARGET}
   fi
-else
-  echo "Skipping corpus copy for target ${TARGET} (NO_CORPUS variable set)"
 fi
 
 LIBFUZZER_ARGS=()
