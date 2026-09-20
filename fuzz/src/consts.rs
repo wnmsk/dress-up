@@ -75,26 +75,100 @@ pub mod cose {
 // SUIT Manifest constant definitions.
 pub mod suit {
     use super::cbor;
-    // --- SUIT Manifest tag ---
     /// Tag for SUIT Manifest (107)
     /// => tag major type + additional info one byte + 107 in next byte
     pub const MANIFEST_TAG: [u8; 2] = [cbor::TAG_MAJOR_BASE + cbor::AI_ONE_BYTE, 107];
+}
 
-    // --- Envelope field constants ---
-    /// Unset detection
-    pub const ENVLP_UNSET: u8 = 0;
-    /// Authentication wrapper
-    pub const ENVLP_AUTHENTICATION: u8 = 2;
-    /// Manifest content
-    pub const ENVLP_MANIFEST: u8 = 3;
-    /// Payload fetch
-    ///
-    /// Used when the payload fetch stage is severable
-    pub const ENVLP_PAYLOAD_FETCH: u8 = 16;
-    /// Payload installation
-    ///
-    /// Used when the payload installation stage is severable
-    pub const ENVLP_PAYLOAD_INSTALLATION: u8 = 20;
-    /// Text description of the manifest
-    pub const ENVLP_TEXT: u8 = 23;
+// =======================================================
+
+// labels used in SUIT Manifests as declared in
+// https://www.ietf.org/archive/id/draft-ietf-suit-manifest-36.html#name-iana-considerations
+pub mod labels {
+    // SUIT Envelope Element Labels
+    pub mod envelope_elements {
+        pub const UNSET_DETECTION: u8 = 0;
+
+        pub const AUTHENTICATION_WRAPPER: u8 = 2;
+        pub const MANIFEST: u8 = 3;
+
+        pub const PAYLOAD_FETCH: u8 = 16;
+        pub const PAYLOAD_INSTALLATION: u8 = 20;
+        pub const TEXT_DESCRIPTION: u8 = 23;
+    }
+
+    // SUIT Manifest Element Labels
+    pub mod manifest_elements {
+        pub const UNSET_DETECTION: u8 = 0;
+
+        pub const ENCODING_VERSION: u8 = 1;
+        pub const SEQUENCE_NUMBER: u8 = 2;
+        pub const COMMON_DATA: u8 = 3;
+        pub const REFERENCE_URI: u8 = 4;
+
+        pub const IMAGE_VALIDATION: u8 = 7;
+        pub const IMAGE_LOADING: u8 = 8;
+        pub const IMAGE_INVOCATION: u8 = 9;
+
+        pub const PAYLOAD_FETCH: u8 = 16;
+        pub const PAYLOAD_INSTALLATION: u8 = 20;
+        pub const TEXT_DESCRIPTION: u8 = 23;
+    }
+
+    // SUIT Common Element Labels
+    pub mod common_elements {
+        pub const UNSET_DETECTION: u8 = 0;
+
+        pub const COMPONENT_IDENTIFIERS: u8 = 2;
+        pub const COMMON_COMMAND_SEQUENCE: u8 = 4;
+    }
+
+    // SUIT Command Labels
+    pub mod commands {
+        pub const UNSET_DETECTION: u8 = 0;
+
+        pub const VENDOR_IDENTIFIER: u8 = 1;
+        pub const CLASS_IDENTIFIER: u8 = 2;
+        pub const IMAGE_MATCH: u8 = 3;
+
+        pub const COMPONENT_SLOT: u8 = 5;
+        pub const CHECK_CONTENT: u8 = 6;
+
+        pub const SET_COMPONENT_INDEX: u8 = 12;
+        pub const ABORT: u8 = 14;
+        pub const TRY_EACH: u8 = 15;
+
+        pub const WRITE_CONTENT: u8 = 18;
+
+        pub const OVERRIDE_PARAMETERS: u8 = 20;
+        pub const FETCH: u8 = 21;
+        pub const COPY: u8 = 22;
+        pub const INVOKE: u8 = 23;
+        pub const DEVICE_IDENTIFIER: u8 = 24;
+
+        pub const SWAP: u8 = 31;
+        pub const RUN_SEQUENCE: u8 = 32;
+    }
+
+    // SUIT Parameter Labels
+    pub mod parameters {
+        pub const UNSET_DETECTION: u8 = 0;
+
+        pub const VENDOR_ID: u8 = 1;
+        pub const CLASS_ID: u8 = 2;
+        pub const IMAGE_DIGEST: u8 = 3;
+
+        pub const COMPONENT_SLOT: u8 = 5;
+
+        pub const STRICT_ORDER: u8 = 12;
+        pub const SOFT_FAILURE: u8 = 13;
+        pub const IMAGE_SIZE: u8 = 14;
+
+        pub const CONTENT: u8 = 18;
+
+        pub const URI: u8 = 21;
+        pub const SOURCE_COMPONENT: u8 = 22;
+        pub const INVOKE_ARGS: u8 = 23;
+        pub const DEVICE_ID: u8 = 24;
+    }
 }
