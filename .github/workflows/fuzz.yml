@@ -1,5 +1,6 @@
 name: Fuzz
 on:
+  push: # TODO: just for testing
   schedule:
     # Weekly on Sundays at 00:01 UTC
     - cron: "1 0 * * 0"
@@ -9,7 +10,8 @@ env:
   NIGHTLY_TOOLCHAIN: nightly-2026-04-20
   # Run for 5h 30min --> GitHub runner max is 6h
   # --> https://docs.github.com/en/actions/reference/limits
-  MAX_TIME: 19800
+  # MAX_TIME: 19800
+  MAX_TIME: 60 # TODO: just for testing
 
 jobs:
   fuzz:
